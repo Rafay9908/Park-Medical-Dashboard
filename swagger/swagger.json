@@ -1,0 +1,99 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "Medical Clinic API",
+      "version": "1.0.0",
+      "description": "Slot Booking APIs"
+    },
+    "paths": {
+      "/api/slots": {
+        "get": {
+          "summary": "Get All Slots",
+          "responses": {
+            "200": {
+              "description": "Successful Response"
+            }
+          }
+        },
+        "post": {
+          "summary": "Create Slot",
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Slot"
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Slot Created"
+            }
+          }
+        }
+      },
+      "/api/slots/{id}": {
+        "put": {
+          "summary": "Update Slot",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true
+            }
+          ],
+          "requestBody": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Slot"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Slot Updated"
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete Slot",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Slot Deleted"
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "Slot": {
+          "type": "object",
+          "properties": {
+            "slotName": {
+              "type": "string"
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  }
+  
