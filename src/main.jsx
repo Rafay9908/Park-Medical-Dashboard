@@ -8,7 +8,7 @@ import Clinicians from './pages/Clinicians';
 import RotaDraftGenerator from './pages/RotaDraftGenerator';
 import Analytics from './pages/Analytics';
 import MainRota from './pages/MainRota';
-import ShiftSlotsManagement from './pages/ShiftSlotsManagement';
+import Settings from './pages/Settings';
 import HistoricalBooking from './pages/HistoricalBooking';
 import TravelCostPlanner from './pages/TravelCostPlanner';
 import RotaGenerationSettings from './pages/RotaGenerationSettings';
@@ -24,7 +24,7 @@ const router = createBrowserRouter(
       <Route path="rota-draft" element={<RotaDraftGenerator />} />
       <Route path="analytics" element={<Analytics />} />
       <Route path="main-rota" element={<MainRota />} />
-      <Route path="shift-slots" element={<ShiftSlotsManagement />} />
+      <Route path="settings" element={<Settings />} />
       <Route path="historical-booking" element={<HistoricalBooking />} />
       <Route path="travel-cost" element={<TravelCostPlanner />} />
       <Route path="rota-settings" element={<RotaGenerationSettings />} />

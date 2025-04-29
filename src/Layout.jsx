@@ -94,14 +94,14 @@ export default function Layout() {
           </NavLink>
 
           <NavLink
-            to="/shift-slots"
+            to="/settings"
             className={({ isActive }) =>
               isActive
                 ? "bg-gray-700 p-2 rounded font-bold"
                 : "hover:bg-gray-700 p-2 rounded"
             }
           >
-            {isOpen && "Shift Slots"}
+            {isOpen && "Settings"}
           </NavLink>
 
           <NavLink
