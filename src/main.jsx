@@ -13,23 +13,31 @@ import HistoricalBooking from './pages/HistoricalBooking';
 import TravelCostPlanner from './pages/TravelCostPlanner';
 import RotaGenerationSettings from './pages/RotaGenerationSettings';
 import PreferencesConstraints from './pages/PreferencesConstraints';
+import SignUp from './pages/SignUp';
+import Login from './pages/Login';
+
 import './index.css';
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path="/" element={<Layout />}>
-      <Route index element={<Main />} />
-      <Route path="clinics" element={<Clinics />} />
-      <Route path="clinicians" element={<Clinicians />} />
-      <Route path="rota-draft" element={<RotaDraftGenerator />} />
-      <Route path="analytics" element={<Analytics />} />
-      <Route path="main-rota" element={<MainRota />} />
-      <Route path="settings" element={<Settings />} />
-      <Route path="historical-booking" element={<HistoricalBooking />} />
-      <Route path="travel-cost" element={<TravelCostPlanner />} />
-      <Route path="rota-settings" element={<RotaGenerationSettings />} />
-      <Route path="preferences-constraints" element={<PreferencesConstraints />} />
-    </Route>
+    <>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<Main />} />
+        <Route path="clinics" element={<Clinics />} />
+        <Route path="clinicians" element={<Clinicians />} />
+        <Route path="rota-draft" element={<RotaDraftGenerator />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="main-rota" element={<MainRota />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="historical-booking" element={<HistoricalBooking />} />
+        <Route path="travel-cost" element={<TravelCostPlanner />} />
+        <Route path="rota-settings" element={<RotaGenerationSettings />} />
+        <Route path="preferences-constraints" element={<PreferencesConstraints />} />
+      </Route>
+
+      <Route path="/signup" element={<SignUp />} />
+      <Route path="/login" element={<Login />} />
+    </>
   )
 );
 

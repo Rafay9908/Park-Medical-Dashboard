@@ -6,7 +6,7 @@ export default function Layout() {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
       <aside
         className={`bg-gray-800 text-white p-6 space-y-4 transition-all duration-300 ${

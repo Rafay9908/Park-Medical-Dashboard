@@ -13,6 +13,8 @@ import {
   FaCalendarAlt,
 } from "react-icons/fa";
 
+import { FiChevronDown, FiChevronUp } from "react-icons/fi";
+
 const daysOfWeek = [
   "Monday",
   "Tuesday",
@@ -46,6 +48,8 @@ export default function Clinics() {
       isOpen: true,
     }))
   );
+
+  const [expandedCard, setExpandedCard] = useState(null);
 
   const handleTimeChange = (index, field, value) => {
     const updatedHours = [...clinicHours];
@@ -84,6 +88,129 @@ export default function Clinics() {
     console.log(formData);
   };
 
+  const cards = [
+    {
+      id: "baker-st",
+      name: "Baker St",
+      address: "none",
+      transport: {
+        station: "Baker Street Station (Station)",
+        bus: "None (Bus)",
+        zone: "Zone 1",
+      },
+      walkingTimeToStation: "7 minutes to station",
+      operatingHoursNote: "No operating hours set",
+      buttons: [
+        { label: "Quick Edit", action: "quickEdit" },
+        { label: "Full Edit", action: "fullEdit" },
+      ],
+      regularOperatingHours: [
+        {
+          day: "Monday",
+          isOpen: true,
+          from: "08:00",
+          to: "14:00",
+        },
+        {
+          day: "Tuesday",
+          isOpen: false,
+          from: "08:00",
+          to: "20:00",
+        },
+        {
+          day: "Wednesday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+        {
+          day: "Thursday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+        {
+          day: "Friday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+        {
+          day: "Saturday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+        {
+          day: "Sunday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+      ],
+    },
+    {
+      id: "oxford-clinic",
+      name: "Bexley",
+      address: "none",
+      transport: {
+        station: "Bexley Street Station (Station)",
+        bus: "None (Bus)",
+        zone: "Zone 1",
+      },
+      walkingTimeToStation: "7 minutes to station",
+      operatingHoursNote: "No operating hours set",
+      buttons: [
+        { label: "Quick Edit", action: "quickEdit" },
+        { label: "Full Edit", action: "fullEdit" },
+      ],
+      regularOperatingHours: [
+        {
+          day: "Monday",
+          isOpen: true,
+          from: "08:00",
+          to: "14:00",
+        },
+        {
+          day: "Tuesday",
+          isOpen: false,
+          from: "08:00",
+          to: "20:00",
+        },
+        {
+          day: "Wednesday",
+          isOpen: true,
+          from: "16:00",
+          to: "18:00",
+        },
+        {
+          day: "Thursday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+        {
+          day: "Friday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+        {
+          day: "Saturday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+        {
+          day: "Sunday",
+          isOpen: false,
+          from: null,
+          to: null,
+        },
+      ],
+    },
+  ];
+
   return (
     <>
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
@@ -95,7 +222,7 @@ export default function Clinics() {
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-4xl space-y-8"
+          className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-8"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Clinic Name */}
@@ -204,7 +331,7 @@ export default function Clinics() {
                 name="wheelchairAccessible"
                 checked={formData.wheelchairAccessible}
                 onChange={handleChange}
-                clssName="h-5 w-5 text-blue-600"
+                className="h-5 w-5 text-blue-600"
               />
               <span className="flex items-center gap-2 text-gray-700 font-medium">
                 <FaWheelchair /> Wheelchair Accessible
@@ -314,42 +441,45 @@ export default function Clinics() {
             </div>
 
             {clinicHours.map((clinic, index) => (
-            <div key={clinic.day} className="flex justify-around items-center gap-4 mb-6 col-span-2">
-              <div className="w-24 font-semibold text-gray-800">
-                {clinic.day}
+              <div
+                key={clinic.day}
+                className="flex justify-around items-center gap-4 mb-6 col-span-2"
+              >
+                <div className="w-24 font-semibold text-gray-800">
+                  {clinic.day}
+                </div>
+
+                <select
+                  className="border border-gray-300 rounded-md p-2"
+                  value={clinic.startTime}
+                  onChange={(e) =>
+                    handleTimeChange(index, "startTime", e.target.value)
+                  }
+                >
+                  {generateTimeOptions()}
+                </select>
+
+                <select
+                  className="border border-gray-300 rounded-md p-2"
+                  value={clinic.endTime}
+                  onChange={(e) =>
+                    handleTimeChange(index, "endTime", e.target.value)
+                  }
+                >
+                  {generateTimeOptions()}
+                </select>
+
+                <label className="flex items-center gap-2 ml-2">
+                  <input
+                    type="checkbox"
+                    checked={clinic.isOpen}
+                    onChange={() => toggleOpen(index)}
+                    className="accent-blue-600 w-5 h-5"
+                  />
+                  <span>Open</span>
+                </label>
               </div>
-
-              <select
-                className="border border-gray-300 rounded-md p-2"
-                value={clinic.startTime}
-                onChange={(e) =>
-                  handleTimeChange(index, "startTime", e.target.value)
-                }
-              >
-                {generateTimeOptions()}
-              </select>
-
-              <select
-                className="border border-gray-300 rounded-md p-2"
-                value={clinic.endTime}
-                onChange={(e) =>
-                  handleTimeChange(index, "endTime", e.target.value)
-                }
-              >
-                {generateTimeOptions()}
-              </select>
-
-              <label className="flex items-center gap-2 ml-2">
-                <input
-                  type="checkbox"
-                  checked={clinic.isOpen}
-                  onChange={() => toggleOpen(index)}
-                  className="accent-blue-600 w-5 h-5"
-                />
-                <span>Open</span>
-              </label>
-            </div>
-          ))}
+            ))}
           </div>
 
           {/* Submit Button */}
@@ -362,6 +492,131 @@ export default function Clinics() {
             </button>
           </div>
         </form>
+
+        <div className="rounded-3xl w-full max-w-4xl space-y-2 mt-8">
+          <h4 className="text-[#262730]">Existing Clinics</h4>
+          <h3 className="text-[#262730] text-[28px]">🟢 Active Clinics</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+            {cards.map((clinic) => (
+              <div
+                key={clinic.id}
+                className="bg-white rounded-xl p-4 transition-all duration-300 col-span-2"
+              >
+                <div
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() =>
+                    setExpandedCard((prev) =>
+                      prev === clinic.id ? null : clinic.id
+                    )
+                  }
+                >
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">
+                      {clinic.name}
+                    </h3>
+                  </div>
+                  <span className="text-blue-600 font-semibold">
+                    {expandedCard === clinic.id ? (
+                      <FiChevronUp />
+                    ) : (
+                      <FiChevronDown />
+                    )}
+                  </span>
+                </div>
+
+                {expandedCard === clinic.id && (
+                  <div className="mt-4 space-y-2 text-sm text-gray-700">
+                    <p>
+                      📍 <strong>Address:</strong> {clinic.address}
+                    </p>
+                    <p>
+                      🚉 <strong>Transport:</strong> {clinic.transport.station},{" "}
+                      {clinic.transport.bus}, {clinic.transport.zone}
+                    </p>
+                    <p>
+                      👣 <strong>Walking Time:</strong>{" "}
+                      {clinic.walkingTimeToStation}
+                    </p>
+                    <p>
+                      ⏰ <strong>Operating Hours:</strong>{" "}
+                      {clinic.operatingHoursNote || "Not specified"}
+                    </p>
+
+                    <div className="mt-4">
+                      <h4 className="text-xl font-semibold mt-8 mb-8 text-gray-800">
+                        🕒 Regular Operating Hours
+                      </h4>
+                      <div className="space-y-4 mb-8">
+                        {clinic.regularOperatingHours.map((hour, idx) => (
+                          <div
+                            key={idx}
+                            className="grid grid-cols-12 items-center gap-x-4"
+                          >
+                            {/* Day */}
+                            <div className="col-span-3 font-medium text-gray-700 flex justify-center items-center">
+                              {hour.day}
+                            </div>
+
+                            {/* From time (shown as text since it's not editable) */}
+                            <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
+                              {hour.isOpen && hour.from ? hour.from : "--"}
+                            </div>
+
+                            {/* To time */}
+                            <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
+                              {hour.isOpen && hour.to ? hour.to : "--"}
+                            </div>
+
+                            {/* Open Checkbox */}
+                            <div className="col-span-3 flex justify-center items-center gap-2">
+                              <div
+                                className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
+                                  hour.isOpen
+                                    ? "bg-blue-600 border-blue-600"
+                                    : "bg-gray-200 border-gray-400"
+                                }`}
+                              >
+                                {hour.isOpen && (
+                                  <svg
+                                    className="w-3 h-3 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="3"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                              <span className="text-sm text-gray-600">
+                                Open
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
+                      {clinic.buttons.map((btn, idx) => (
+                        <button
+                          key={idx}
+                          className="bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-sm hover:bg-blue-200 cursor-pointer"
+                        >
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </>
   );
