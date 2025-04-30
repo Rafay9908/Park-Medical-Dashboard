@@ -26,3 +26,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+//Clinics
+const clinicRoutes = require('./routes/clinicRoutes');
+app.use('/api/clinics', clinicRoutes);
+
