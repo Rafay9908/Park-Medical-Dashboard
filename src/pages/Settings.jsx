@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useState } from "react";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import axios from "axios";
+import { DateTime } from "luxon";
 
 function Settings() {
   const [formData, setFormData] = useState({
@@ -19,7 +20,7 @@ function Settings() {
 
   const [error, setError] = useState("");
 
-  const [slots, setSlots] = useState([{}]);
+  const [slots, setSlots] = useState([]);
 
   const [openSlotId, setOpenSlotId] = useState(null);
 
@@ -43,20 +44,32 @@ function Settings() {
     e.preventDefault();
     setError("");
 
-    const baseDate = new Date().toISOString().split("T")[0];
+    const baseDate = DateTime.now().setZone("Europe/London").toISODate();
 
-    const newStart = new Date(`${baseDate}T${formData.startDate}:00`);
-    const newEnd = new Date(`${baseDate}T${formData.endDate}:00`);
+    const newStart = DateTime.fromISO(`${baseDate}T${formData.startDate}`, {
+      zone: "Europe/London",
+    })
+      .toUTC()
+      .toISO();
+
+    const newEnd = DateTime.fromISO(`${baseDate}T${formData.endDate}`, {
+      zone: "Europe/London",
+    })
+      .toUTC()
+      .toISO();
 
     // Check for time conflicts
     const hasConflict = slots.some((slot) => {
-      const existingStart = new Date(`${baseDate}T${slot.startDate}:00`);
-      const existingEnd = new Date(`${baseDate}T${slot.endDate}:00`);
+      const existingStart = DateTime.fromISO(slot.startDate).toUTC();
+      const existingEnd = DateTime.fromISO(slot.endDate).toUTC();
+
+      const checkStart = DateTime.fromISO(newStart);
+      const checkEnd = DateTime.fromISO(newEnd);
 
       return (
-        (newStart >= existingStart && newStart < existingEnd) ||
-        (newEnd > existingStart && newEnd <= existingEnd) ||
-        (newStart <= existingStart && newEnd >= existingEnd)
+        (checkStart >= existingStart && checkStart < existingEnd) ||
+        (checkEnd > existingStart && checkEnd <= existingEnd) ||
+        (checkStart <= existingStart && checkEnd >= existingEnd)
       );
     });
 
@@ -67,8 +80,8 @@ function Settings() {
 
     const payload = {
       slotName: formData.slotName,
-      startDate: newStart.toISOString(),
-      endDate: newEnd.toISOString(),
+      startDate: newStart,
+      endDate: newEnd,
     };
 
     try {
@@ -117,32 +130,51 @@ function Settings() {
   };
 
   const handleSaveUpdate = async (id) => {
+    setError("");
+
+    const baseDate = DateTime.now().setZone("Europe/London").toISODate();
+
+    const updatedStart = DateTime.fromISO(
+      `${baseDate}T${editFormData.startDate}`,
+      {
+        zone: "Europe/London",
+      }
+    )
+      .toUTC()
+      .toISO();
+
+    const updatedEnd = DateTime.fromISO(`${baseDate}T${editFormData.endDate}`, {
+      zone: "Europe/London",
+    })
+      .toUTC()
+      .toISO();
+
+    const payload = {
+      slotName: editFormData.slotName,
+      startDate: updatedStart,
+      endDate: updatedEnd,
+    };
+
     try {
-      const payload = {
-        slotName: editFormData.slotName,
-        startDate: new Date(`${new Date().toISOString().split("T")[0]}T${editFormData.startDate}:00`).toISOString(),
-        endDate: new Date(`${new Date().toISOString().split("T")[0]}T${editFormData.endDate}:00`).toISOString(),
-      };
-  
       await axios.put(`http://localhost:5000/api/slots/${id}`, payload);
-  
+
       // Refresh list
       const response = await axios.get("http://localhost:5000/api/slots");
       setSlots(response.data);
-  
+
       setEditSlotId(null);
     } catch (error) {
       console.error("Failed to update slot:", error);
       setError("Failed to update slot. Please try again.");
     }
   };
-  
-  
 
   const handleDelete = async (id) => {
-    const confirmed = window.confirm("Are you sure you want to delete this slot?");
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this slot?"
+    );
     if (!confirmed) return;
-  
+
     try {
       await axios.delete(`http://localhost:5000/api/slots/${id}`);
       const response = await axios.get("http://localhost:5000/api/slots");
@@ -152,7 +184,9 @@ function Settings() {
       setError("Failed to delete slot. Please try again.");
     }
   };
-  
+
+  const formatTime = (isoString) =>
+    DateTime.fromISO(isoString).setZone("Europe/London").toFormat("HH:mm");
 
   useEffect(() => {
     const fetchSlots = async () => {
@@ -170,13 +204,9 @@ function Settings() {
   return (
     <>
       <div className="min-h-screen flex flex-col items-center  bg-gray-100 p-6">
-        <div className="pt-5 pb-5">
-          <h3 className="text-[#1E2939] text-5xl font-bold leading-[53px]">
-            Settings
-          </h3>
-        </div>
-        <div className="text-[#1E2939] text-2xl font-bold leading-[53px] pb-10">
-          <h4>Shift Slots Management</h4>
+      <div className="w-full max-w-4xl mb-8">
+        <h3 className="text-3xl font-bold self-start mb-4">Settings</h3>
+        <h5 className="text-xl font-bold">Shift Slots Management</h5>
         </div>
 
         {error && (
@@ -189,8 +219,8 @@ function Settings() {
           onSubmit={handleSubmit}
           className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-4"
         >
-          <p className="text-lg font-bold text">Add New Shift Slot</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <p className="text-2xl font-bold text">Add New Shift Slot</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {/* Clinic Name */}
             <div className="flex flex-col space-y-1 col-span-2">
               <label className="flex items-center gap-2 text-gray-700 font-medium text-sm">
@@ -237,7 +267,7 @@ function Settings() {
           <div className="text-left">
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full shadow-lg transition-all duration-300 cursor-pointer"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 cursor-pointer"
             >
               Add Slot
             </button>
@@ -245,77 +275,142 @@ function Settings() {
         </form>
 
         <div className="w-full max-w-4xl space-y-4 mt-10">
-          {slots.map((slot) => (
-            <div
-              key={slot._id}
-              className="bg-white rounded-3xl overflow-hidden transition-all duration-300"
-            >
-              {/* Header */}
+          <h3 className="text-2xl font-bold">View and Edit Shift Slots</h3>
+          {slots.map((slot) => {
+            const startTimeUK = DateTime.fromISO(slot.startDate)
+              .setZone("Europe/London")
+              .toFormat("HH:mm");
+            const endTimeUK = DateTime.fromISO(slot.endDate)
+              .setZone("Europe/London")
+              .toFormat("HH:mm");
+
+            return (
               <div
-                onClick={() => toggleSlot(slot._id)}
-                className="flex items-center justify-between cursor-pointer px-6 py-4 bg-white"
+                key={slot._id}
+                className="bg-white rounded-3xl overflow-hidden transition-all duration-300"
               >
-                <p className="font-semibold text-lg">{slot.slotName}</p>
-                {openSlotId === slot._id ? (
-                  <FiChevronUp className="w-5 h-5" />
-                ) : (
-                  <FiChevronDown className="w-5 h-5" />
+                {/* Header */}
+                <div
+                  onClick={() => toggleSlot(slot._id)}
+                  className="flex items-center justify-between cursor-pointer px-6 py-4 bg-white"
+                >
+                  <p className="font-semibold text-lg">{slot.slotName}</p>
+                  {openSlotId === slot._id ? (
+                    <FiChevronUp className="w-5 h-5" />
+                  ) : (
+                    <FiChevronDown className="w-5 h-5" />
+                  )}
+                </div>
+
+                {/* Body */}
+                {openSlotId === slot._id && (
+                  <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="flex flex-col space-y-1 col-span-2">
+                        <label className="text-gray-700 text-sm font-medium">
+                          Shift Name
+                        </label>
+                        {editSlotId === slot._id ? (
+                          <input
+                            type="text"
+                            name="slotName"
+                            value={editFormData.slotName}
+                            onChange={handleEditChange}
+                            className="border p-3 rounded-lg"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            value={slot.slotName}
+                            disabled
+                            className="border p-3 rounded-lg bg-gray-100"
+                          />
+                        )}
+                      </div>
+
+                      <div className="flex flex-col space-y-1 col-span-2">
+                        <label>Start Time</label>
+                        {editSlotId === slot._id ? (
+                          <select
+                            name="startDate"
+                            value={editFormData.startDate}
+                            onChange={handleEditChange}
+                            className="border p-3 rounded-lg"
+                          >
+                            {timeSlots.map((time, index) => (
+                              <option key={index} value={time}>
+                                {time}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="p-3 bg-gray-100 rounded-lg border">
+                            {formatTime(slot.startDate)}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col space-y-1 col-span-2">
+                        <label>End Time</label>
+                        {editSlotId === slot._id ? (
+                          <select
+                            name="endDate"
+                            value={editFormData.endDate}
+                            onChange={handleEditChange}
+                            className="border p-3 rounded-lg"
+                          >
+                            {timeSlots.map((time, index) => (
+                              <option key={index} value={time}>
+                                {time}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="p-3 bg-gray-100 rounded-lg border">
+                            {formatTime(slot.endDate)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-x-4">
+                      {editSlotId === slot._id ? (
+                        <>
+                          <button
+                            onClick={() => handleSaveUpdate(slot._id)}
+                            className="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-full cursor-pointer"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditSlotId(null)}
+                            className="bg-gray-400 hover:bg-gray-500 text-white py-2 px-6 rounded-full cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleUpdate(slot._id)}
+                            className="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-6 rounded-full cursor-pointer"
+                          >
+                            Update
+                          </button>
+                          <button
+                            onClick={() => handleDelete(slot._id)}
+                            className="bg-red-500 hover:bg-red-600 text-white py-2 px-6 rounded-full cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-
-              {/* Body */}
-              {openSlotId === slot._id && (
-                <div className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="flex flex-col space-y-1 col-span-2">
-                      <label className="text-gray-700 text-sm font-medium">
-                        Shift Name
-                      </label>
-                      <input
-                        type="text"
-                        value={slot.slotName}
-                        disabled
-                        className="border p-3 rounded-lg bg-gray-100"
-                      />
-                    </div>
-                    <div className="flex flex-col space-y-1 col-span-2">
-                      <label>Start Time</label>
-                      <select
-                        disabled
-                        className="border p-3 rounded-lg bg-gray-100"
-                      >
-                        <option>{slot.startDate}</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col space-y-1 col-span-2">
-                      <label>End Time</label>
-                      <select
-                        disabled
-                        className="border p-3 rounded-lg bg-gray-100"
-                      >
-                        <option>{slot.endDate}</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-x-4">
-                    <button
-                      onClick={() => handleUpdate(slot._id)}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-6 rounded-full"
-                    >
-                      Update
-                    </button>
-                    <button
-                      onClick={() => handleDelete(slot._id)}
-                      className="bg-red-500 hover:bg-red-600 text-white py-2 px-6 rounded-full"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </>
