@@ -36,6 +36,33 @@ const Clinicians = () => {
 
   const [slots, setSlots] = useState([]);
 
+  const [clinicians, setClinicians] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchClinicians = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/clinicians");
+        setClinicians(response.data);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error fetching clinicians:", error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchClinicians();
+  }, []);
+
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/clinicians/${id}`);
+      setClinicians(clinicians.filter(clinician => clinician._id !== id));
+    } catch (error) {
+      console.error("Error deleting clinician:", error);
+    }
+  };
+
   useEffect(() => {
     axios
       .get("http://localhost:5000/api/slots")
@@ -337,13 +364,81 @@ const Clinicians = () => {
             <div className="text-center mt-6">
               <button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full shadow-lg cursor-pointer"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full cursor-pointer"
               >
                 Add Clinician
               </button>
             </div>
           </div>
         </form>
+
+
+
+        <div className="bg-white p-8 rounded-3xl w-full max-w-4xl mt-8">
+          <h3 className="text-2xl font-bold mb-6">Existing Clinicians</h3>
+          
+          {isLoading ? (
+            <p>Loading clinicians...</p>
+          ) : clinicians.length === 0 ? (
+            <p>No clinicians found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nearest Station</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preferred Clinics</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Working Days</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {clinicians.map((clinician) => (
+                    <tr key={clinician._id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="text-sm font-medium text-gray-900">{clinician.clinicianName}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {clinician.nearestStation}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {clinician.selectedClinics?.join(", ")}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {clinician.workingDays?.join(", ")}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          className="text-indigo-600 hover:text-indigo-900 mr-4"
+                          onClick={() => {
+                            // Set form data for editing
+                            setFormData({
+                              ...clinician,
+                              _id: clinician._id // include the ID for updates
+                            });
+                            setSelectedDays(clinician.workingDays || []);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          className="text-red-600 hover:text-red-900"
+                          onClick={() => handleDelete(clinician._id)}
+                        >
+                          <FaTrash />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

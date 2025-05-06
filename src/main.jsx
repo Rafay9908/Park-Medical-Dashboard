@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './Layout';
 import Main from './pages/Main';
 import Clinics from './pages/Clinics';
@@ -15,13 +17,25 @@ import RotaGenerationSettings from './pages/RotaGenerationSettings';
 import PreferencesConstraints from './pages/PreferencesConstraints';
 import SignUp from './pages/SignUp';
 import Login from './pages/Login';
-
 import './index.css';
 
+// Create router configuration
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <>
-      <Route path="/" element={<Layout />}>
+    <Route>
+      {/* Public Routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<SignUp />} />
+
+      {/* Protected Routes */}
+      <Route 
+        path="/" 
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Main />} />
         <Route path="clinics" element={<Clinics />} />
         <Route path="clinicians" element={<Clinicians />} />
@@ -35,14 +49,19 @@ const router = createBrowserRouter(
         <Route path="preferences-constraints" element={<PreferencesConstraints />} />
       </Route>
 
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/login" element={<Login />} />
-    </>
+      {/* Redirect to login for unknown routes */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Route>
   )
 );
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+// Create root and render app
+const root = ReactDOM.createRoot(document.getElementById('root'));
+
+root.render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   </React.StrictMode>
 );

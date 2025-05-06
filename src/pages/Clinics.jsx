@@ -77,31 +77,32 @@ export default function Clinics() {
 
   // Add or update clinic
   const saveClinic = async (clinicData, id = null) => {
-    try {
-      const url = id 
-        ? `http://localhost:5000/api/clinics/${id}`
-        : 'http://localhost:5000/api/clinics';
+    console.log("saveckinic",clinicData)
+    // try {
+    //   const url = id 
+    //     ? `http://localhost:5000/api/clinics/${id}`
+    //     : 'http://localhost:5000/api/clinics';
       
-      const method = id ? 'PUT' : 'POST';
+    //   const method = id ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(clinicData),
-      });
+    //   const response = await fetch(url, {
+    //     method,
+    //     headers: {
+    //       'Content-Type': 'application/json',
+    //     },
+    //     body: JSON.stringify(clinicData),
+    //   });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save clinic');
-      }
+    //   if (!response.ok) {
+    //     const errorData = await response.json();
+    //     throw new Error(errorData.message || 'Failed to save clinic');
+    //   }
 
-      return await response.json();
-    } catch (error) {
-      console.error('Error saving clinic:', error);
-      throw error;
-    }
+    //   return await response.json();
+    // } catch (error) {
+    //   console.error('Error saving clinic:', error);
+    //   throw error;
+    // }
   };
 
   // Delete clinic
