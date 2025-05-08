@@ -1,17 +1,28 @@
 const mongoose = require('mongoose');
 
+const operatingHoursSchema = new mongoose.Schema({
+  day: { type: String, required: true },
+  open: { type: Boolean, required: true },
+  openingTime: { type: String },
+  closingTime: { type: String }
+});
+
 const clinicSchema = new mongoose.Schema({
   clinicName: { type: String, required: true },
   address: { type: String, required: true },
-  minSessionPerWeek: { type: Number, required: true },
-  ownerName: { type: String },
-  localStation: { type: String },
-  nearestBus: { type: String },
-  tflZone: { type: String },
-  checkInInstructions: { type: String },
-  wheelchairAccessible: { type: Boolean, default: false },
-  wifiDetails: { type: String },
-  walkingMinutesToStations: { type: Number }
+  minimumSessionPerWeek: { type: Number, required: true },
+  operatingHours: [operatingHoursSchema],
+  
+  // Optional fields
+  ownerName: String,
+  localStation: String,
+  nearestBus: String,
+  tflZone: String,
+  checkInInstructions: String,
+ wheelchairAccessible: Boolean,
+  wifiDetails: String,
+  walkingMinutesToStations: Number,
+  u_id: String
 }, { timestamps: true });
 
 module.exports = mongoose.model('Clinic', clinicSchema);
