@@ -15,7 +15,7 @@ app.use(cors());
 
 // ✅ If you want to restrict it to a specific origin (optional)
 app.use(cors({
-  origin: 'http://localhost:3000',  // change to your frontend domain
+  origin: 'http://localhost:5173',  // change to your frontend domain
   credentials: true
 }));
 app.use(express.json());

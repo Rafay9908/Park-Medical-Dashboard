@@ -13,12 +13,7 @@
     "express": "^4.21.2",
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
-<<<<<<< HEAD
     "mongoose": "^7.3.1",
-=======
-    "mongoose": "^7.8.6",
-    "parkmedical_dashboard_backend": "file:",
->>>>>>> 7836ed3f565e42f7c359c338af6eb279f4637fce
     "swagger-ui-express": "^4.6.3"
   },
   "devDependencies": {
