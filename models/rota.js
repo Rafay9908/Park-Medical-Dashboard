@@ -7,8 +7,8 @@ const operatingHoursSchema = new mongoose.Schema({
   closingTime: { type: String }
 });
 
-const clinicSchema = new mongoose.Schema({
-  clinicName: { type: String, required: true },
+const rotaSchema = new mongoose.Schema({
+  rotaName: { type: String, required: true },
   address: { type: String, required: true },
   minimumSessionPerWeek: { type: Number, required: true },
   operatingHours: [operatingHoursSchema],
@@ -25,4 +25,4 @@ const clinicSchema = new mongoose.Schema({
   u_id: String
 }, { timestamps: true });
 
-module.exports = mongoose.model('Clinic', clinicSchema);
+module.exports = mongoose.model('rota', rotaSchema);
