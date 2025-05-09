@@ -1,4 +1,8 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
+
+const apiUrl = import.meta.env.VITE_API_URL;
+
 import {
   FaClinicMedical,
   FaMapMarkerAlt,
@@ -36,19 +40,16 @@ export default function Clinics() {
     wifiDetails: "",
     checkInInstructions: "",
     tflZone: "1",
-    minSessionPerWeek: 1,
+    minimumSessionPerWeek: 1,
     walkingMinutesToStations: 5,
     wheelchairAccessible: false,
-  });
-
-  const [clinicHours, setClinicHours] = useState(
-    daysOfWeek.map((day) => ({
+    operatingHours: daysOfWeek.map(day => ({
       day,
-      startTime: "08:00",
-      endTime: "20:00",
-      isOpen: true,
+      open: true,
+      openingTime: "08:00",
+      closingTime: "20:00"
     }))
-  );
+  });
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,64 +61,40 @@ export default function Clinics() {
     fetchClinics();
   }, []);
 
-  // Fetch all clinics
+  // Fetch all clinics using Axios
   const fetchClinics = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/clinics');
-      if (!response.ok) {
-        throw new Error('Failed to fetch clinics');
-      }
-      const data = await response.json();
-      setClinics(data);
+      const response = await axios.get(`${apiUrl}/clinics`);
+      setClinics(response.data);
     } catch (error) {
       console.error('Error fetching clinics:', error);
       alert('Failed to fetch clinics. Please try again.');
     }
   };
 
-  // Add or update clinic
+  // Add or update clinic using Axios
   const saveClinic = async (clinicData, id = null) => {
-    console.log("saveckinic",clinicData)
-    // try {
-    //   const url = id 
-    //     ? `http://localhost:5000/api/clinics/${id}`
-    //     : 'http://localhost:5000/api/clinics';
-      
-    //   const method = id ? 'PUT' : 'POST';
-
-    //   const response = await fetch(url, {
-    //     method,
-    //     headers: {
-    //       'Content-Type': 'application/json',
-    //     },
-    //     body: JSON.stringify(clinicData),
-    //   });
-
-    //   if (!response.ok) {
-    //     const errorData = await response.json();
-    //     throw new Error(errorData.message || 'Failed to save clinic');
-    //   }
-
-    //   return await response.json();
-    // } catch (error) {
-    //   console.error('Error saving clinic:', error);
-    //   throw error;
-    // }
-  };
-
-  // Delete clinic
-  const deleteClinic = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/clinics/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete clinic');
+      if (id) {
+        const response = await axios.put(`${apiUrl}/clinics/${id}`, clinicData);
+        return response.data;
+      } else {
+        const response = await axios.post(`${apiUrl}/clinics`, clinicData);
+        return response.data;
       }
     } catch (error) {
+      console.error('Error saving clinic:', error);
+      throw error.response?.data?.message || 'Failed to save clinic';
+    }
+  };
+
+  // Delete clinic using Axios
+  const deleteClinic = async (id) => {
+    try {
+      await axios.delete(`${apiUrl}/clinics/${id}`);
+    } catch (error) {
       console.error('Error deleting clinic:', error);
-      throw error;
+      throw error.response?.data?.message || 'Failed to delete clinic';
     }
   };
 
@@ -127,49 +104,43 @@ export default function Clinics() {
     setFormData({
       clinicName: clinic.clinicName,
       address: clinic.address,
-      ownerName: clinic.ownerName,
-      localStation: clinic.localStation,
-      nearestBus: clinic.nearestBus,
-      wifiDetails: clinic.wifiDetails,
-      checkInInstructions: clinic.checkInInstructions,
-      tflZone: clinic.tflZone,
-      minSessionPerWeek: clinic.minSessionPerWeek,
-      walkingMinutesToStations: clinic.walkingMinutesToStations,
-      wheelchairAccessible: clinic.wheelchairAccessible,
+      ownerName: clinic.ownerName || "",
+      localStation: clinic.localStation || "",
+      nearestBus: clinic.nearestBus || "",
+      wifiDetails: clinic.wifiDetails || "",
+      checkInInstructions: clinic.checkInInstructions || "",
+      tflZone: clinic.tflZone || "1",
+      minimumSessionPerWeek: clinic.minimumSessionPerWeek || 1,
+      walkingMinutesToStations: clinic.walkingMinutesToStations || 5,
+      wheelchairAccessible: clinic.wheelchairAccessible || false,
+      operatingHours: daysOfWeek.map(day => {
+        const hourData = clinic.operatingHours?.find(h => h.day === day);
+        return hourData || {
+          day,
+          open: true,
+          openingTime: "08:00",
+          closingTime: "20:00"
+        };
+      })
     });
-
-    // Set operating hours if they exist
-    if (clinic.operatingHours) {
-      const updatedHours = daysOfWeek.map(day => {
-        const hourData = clinic.operatingHours.find(h => h.day === day);
-        return hourData 
-          ? { 
-              day, 
-              startTime: hourData.openingTime || "08:00",
-              endTime: hourData.closingTime || "20:00",
-              isOpen: hourData.open 
-            }
-          : { 
-              day, 
-              startTime: "08:00", 
-              endTime: "20:00", 
-              isOpen: false 
-            };
-      });
-      setClinicHours(updatedHours);
-    }
   };
 
   const handleTimeChange = (index, field, value) => {
-    const updatedHours = [...clinicHours];
+    const updatedHours = [...formData.operatingHours];
     updatedHours[index][field] = value;
-    setClinicHours(updatedHours);
+    setFormData(prev => ({
+      ...prev,
+      operatingHours: updatedHours
+    }));
   };
 
   const toggleOpen = (index) => {
-    const updatedHours = [...clinicHours];
-    updatedHours[index].isOpen = !updatedHours[index].isOpen;
-    setClinicHours(updatedHours);
+    const updatedHours = [...formData.operatingHours];
+    updatedHours[index].open = !updatedHours[index].open;
+    setFormData(prev => ({
+      ...prev,
+      operatingHours: updatedHours
+    }));
   };
 
   const handleChange = (e) => {
@@ -201,31 +172,43 @@ export default function Clinics() {
       return;
     }
 
+    // Validate operating hours
+    const hasInvalidHours = formData.operatingHours.some(hour => {
+      return hour.open && hour.openingTime >= hour.closingTime;
+    });
+
+    if (hasInvalidHours) {
+      alert('Closing time must be after opening time for all open days');
+      return;
+    }
+
     setIsSubmitting(true);
     
-    const clinicData = {
-      ...formData,
-      operatingHours: clinicHours.map(hour => ({
-        day: hour.day,
-        open: hour.isOpen,
-        openingTime: hour.startTime,
-        closingTime: hour.endTime
-      }))
-    };
-
     try {
-      const result = await saveClinic(clinicData, editingId);
-      console.log('Success:', result);
+      // Prepare the data to send
+      const dataToSend = {
+        ...formData,
+        operatingHours: formData.operatingHours.map(hour => ({
+          day: hour.day,
+          open: hour.open,
+          openingTime: hour.open ? hour.openingTime : undefined,
+          closingTime: hour.open ? hour.closingTime : undefined
+        }))
+      };
+
+      await saveClinic(dataToSend, editingId);
       alert(`Clinic ${editingId ? 'updated' : 'added'} successfully!`);
       resetForm();
       fetchClinics();
     } catch (error) {
       console.error('Error:', error);
-      alert(`Error: ${error.message}`);
+      alert(`Error: ${error}`);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  console.log('data aya hai', formData);
 
   const resetForm = () => {
     setFormData({
@@ -237,20 +220,16 @@ export default function Clinics() {
       wifiDetails: "",
       checkInInstructions: "",
       tflZone: "1",
-      minSessionPerWeek: 1,
+      minimumSessionPerWeek: 1,
       walkingMinutesToStations: 5,
       wheelchairAccessible: false,
-    });
-    
-    setClinicHours(
-      daysOfWeek.map((day) => ({
+      operatingHours: daysOfWeek.map(day => ({
         day,
-        startTime: "08:00",
-        endTime: "20:00",
-        isOpen: true,
+        open: true,
+        openingTime: "08:00",
+        closingTime: "20:00"
       }))
-    );
-    
+    });
     setEditingId(null);
   };
 
@@ -269,19 +248,43 @@ export default function Clinics() {
   const generateTimeOptions = () => {
     const options = [];
     for (let hour = 0; hour < 24; hour++) {
-      const hr = hour.toString().padStart(2, "0");
-      options.push(
-        <option key={`${hr}:00`} value={`${hr}:00`}>{`${hr}:00`}</option>
-      );
+      for (let minute = 0; minute < 60; minute += 30) {
+        const hr = hour.toString().padStart(2, "0");
+        const min = minute.toString().padStart(2, "0");
+        options.push(
+          <option key={`${hr}:${min}`} value={`${hr}:${min}`}>{`${hr}:${min}`}</option>
+        );
+      }
     }
     return options;
+  };
+
+  const setAllHours = (isOpen) => {
+    setFormData(prev => ({
+      ...prev,
+      operatingHours: prev.operatingHours.map(hour => ({
+        ...hour,
+        open: isOpen
+      }))
+    }));
+  };
+
+  const setStandardHours = (start, end) => {
+    setFormData(prev => ({
+      ...prev,
+      operatingHours: prev.operatingHours.map(hour => ({
+        ...hour,
+        openingTime: start,
+        closingTime: end
+      }))
+    }));
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
       <div className="w-full max-w-4xl mb-8">
         <h3 className="text-3xl font-bold self-start">🏥 Clinics Management</h3>
-        </div>
+      </div>
 
       <form
         onSubmit={handleSubmit}
@@ -315,22 +318,22 @@ export default function Clinics() {
             <div className="flex items-center space-x-2">
               <button
                 type="button"
-                onClick={() => handleDecrement("minSessionPerWeek")}
+                onClick={() => handleDecrement("minimumSessionPerWeek")}
                 className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
-                disabled={formData.minSessionPerWeek <= 0}
+                disabled={formData.minimumSessionPerWeek <= 0}
               >
                 -
               </button>
               <input
                 type="number"
-                name="minSessionPerWeek"
-                value={formData.minSessionPerWeek}
+                name="minimumSessionPerWeek"
+                value={formData.minimumSessionPerWeek}
                 readOnly
                 className="w-16 text-center border rounded-lg py-2"
               />
               <button
                 type="button"
-                onClick={() => handleIncrement("minSessionPerWeek")}
+                onClick={() => handleIncrement("minimumSessionPerWeek")}
                 className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
               >
                 +
@@ -364,7 +367,6 @@ export default function Clinics() {
               value={formData.ownerName}
               onChange={handleChange}
               className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
             />
           </div>
 
@@ -502,36 +504,70 @@ export default function Clinics() {
           </div>
 
           <h2 className="text-2xl font-semibold flex items-center gap-2 col-span-2">
-            <span className="text-red-500">⏰</span> Preferred Operating Hours
+            <span className="text-red-500">⏰</span> Operating Hours
           </h2>
 
-          {clinicHours.map((clinic, index) => (
+          {/* Bulk operations */}
+          <div className="col-span-2 flex gap-4 mb-4">
+            <button
+              type="button"
+              onClick={() => setAllHours(true)}
+              className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg"
+            >
+              Open All
+            </button>
+            <button
+              type="button"
+              onClick={() => setAllHours(false)}
+              className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg"
+            >
+              Close All
+            </button>
+            <button
+              type="button"
+              onClick={() => setStandardHours("09:00", "17:00")}
+              className="bg-green-100 text-green-800 px-4 py-2 rounded-lg"
+            >
+              Set 9-5
+            </button>
+            <button
+              type="button"
+              onClick={() => setStandardHours("08:00", "20:00")}
+              className="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg"
+            >
+              Set 8-8
+            </button>
+          </div>
+
+          {formData.operatingHours.map((hour, index) => (
             <div
-              key={clinic.day}
+              key={hour.day}
               className="flex justify-around items-center gap-4 mb-6 col-span-2"
             >
               <div className="w-24 font-semibold text-gray-800">
-                {clinic.day}
+                {hour.day}
               </div>
 
               <select
                 className="border border-gray-300 rounded-md p-2"
-                value={clinic.startTime}
+                value={hour.openingTime}
                 onChange={(e) =>
-                  handleTimeChange(index, "startTime", e.target.value)
+                  handleTimeChange(index, "openingTime", e.target.value)
                 }
-                disabled={!clinic.isOpen}
+                disabled={!hour.open}
               >
                 {generateTimeOptions()}
               </select>
 
+              <span className="text-gray-500">to</span>
+
               <select
                 className="border border-gray-300 rounded-md p-2"
-                value={clinic.endTime}
+                value={hour.closingTime}
                 onChange={(e) =>
-                  handleTimeChange(index, "endTime", e.target.value)
+                  handleTimeChange(index, "closingTime", e.target.value)
                 }
-                disabled={!clinic.isOpen}
+                disabled={!hour.open}
               >
                 {generateTimeOptions()}
               </select>
@@ -539,11 +575,13 @@ export default function Clinics() {
               <label className="flex items-center gap-2 ml-2">
                 <input
                   type="checkbox"
-                  checked={clinic.isOpen}
+                  checked={hour.open}
                   onChange={() => toggleOpen(index)}
                   className="accent-blue-600 w-5 h-5"
                 />
-                <span>Open</span>
+                <span className={hour.open ? "text-green-600" : "text-red-600"}>
+                  {hour.open ? "Open" : "Closed"}
+                </span>
               </label>
             </div>
           ))}
@@ -641,21 +679,21 @@ export default function Clinics() {
               {expandedCard === clinic._id && (
                 <div className="mt-4 space-y-2 text-sm text-gray-700">
                   <p>
-                    <strong>Owner:</strong> {clinic.ownerName}
+                    <strong>Owner:</strong> {clinic.ownerName || "Not specified"}
                   </p>
                   <p>
-                    <strong>Transport:</strong> {clinic.localStation}, {clinic.nearestBus}, Zone {clinic.tflZone}
+                    <strong>Transport:</strong> {clinic.localStation || "Not specified"}, {clinic.nearestBus || "Not specified"}, Zone {clinic.tflZone || "Not specified"}
                   </p>
                   <p>
                     <strong>Accessibility:</strong>{" "}
                     {clinic.wheelchairAccessible ? "Wheelchair accessible" : "Not wheelchair accessible"},{" "}
-                    {clinic.walkingMinutesToStations} min walk
+                    {clinic.walkingMinutesToStations || "Not specified"} min walk
                   </p>
                   <p>
                     <strong>WiFi:</strong> {clinic.wifiDetails || "Not specified"}
                   </p>
                   <p>
-                    <strong>Minimum Sessions:</strong> {clinic.minSessionPerWeek}
+                    <strong>Minimum Sessions:</strong> {clinic.minimumSessionPerWeek || "Not specified"}
                   </p>
                   <p>
                     <strong>Check-In Instructions:</strong>{" "}
@@ -685,11 +723,15 @@ export default function Clinics() {
                             </div>
 
                             <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
-                              {hour.open && hour.openingTime ? hour.openingTime : "--"}
+                              {hour.open && hour.openingTime ? 
+                                new Date(`2000-01-01T${hour.openingTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                                "--"}
                             </div>
 
                             <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
-                              {hour.open && hour.closingTime ? hour.closingTime : "--"}
+                              {hour.open && hour.closingTime ? 
+                                new Date(`2000-01-01T${hour.closingTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                                "--"}
                             </div>
 
                             <div className="col-span-3 flex justify-center items-center gap-2">
@@ -716,7 +758,7 @@ export default function Clinics() {
                                   </svg>
                                 )}
                               </div>
-                              <span className="text-sm text-gray-600">
+                              <span className={`text-sm ${hour.open ? "text-green-600" : "text-red-600"}`}>
                                 {hour.open ? "Open" : "Closed"}
                               </span>
                             </div>

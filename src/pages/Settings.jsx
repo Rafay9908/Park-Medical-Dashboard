@@ -1,10 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useState } from "react";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import axios from "axios";
 import { DateTime } from "luxon";
 
 function Settings() {
+  const API_URL = import.meta.env.VITE_API_URL;
   const [formData, setFormData] = useState({
     slotName: "",
     startDate: "",
@@ -19,14 +20,23 @@ function Settings() {
   });
 
   const [error, setError] = useState("");
-
   const [slots, setSlots] = useState([]);
-
   const [openSlotId, setOpenSlotId] = useState(null);
+
+  // Generate time slots only once using useMemo
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      }
+    }
+    return slots;
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
@@ -34,35 +44,18 @@ function Settings() {
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
-    setEditFormData((prev) => ({
+    setEditFormData(prev => ({
       ...prev,
       [name]: value,
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    const baseDate = DateTime.now().setZone("Europe/London").toISODate();
-
-    const newStart = DateTime.fromISO(`${baseDate}T${formData.startDate}`, {
-      zone: "Europe/London",
-    })
-      .toUTC()
-      .toISO();
-
-    const newEnd = DateTime.fromISO(`${baseDate}T${formData.endDate}`, {
-      zone: "Europe/London",
-    })
-      .toUTC()
-      .toISO();
-
-    // Check for time conflicts
-    const hasConflict = slots.some((slot) => {
-      const existingStart = DateTime.fromISO(slot.startDate).toUTC();
-      const existingEnd = DateTime.fromISO(slot.endDate).toUTC();
-
+  const checkTimeConflict = (newStart, newEnd, excludeId = null) => {
+    return slots.some((slot) => {
+      if (excludeId && slot._id === excludeId) return false;
+      
+      const existingStart = DateTime.fromISO(slot.startDate);
+      const existingEnd = DateTime.fromISO(slot.endDate);
       const checkStart = DateTime.fromISO(newStart);
       const checkEnd = DateTime.fromISO(newEnd);
 
@@ -72,49 +65,54 @@ function Settings() {
         (checkStart <= existingStart && checkEnd >= existingEnd)
       );
     });
+  };
 
-    if (hasConflict) {
-      setError("Time slot overlaps with an existing shift.");
-      return;
+  const formatToUTC = (timeString) => {
+    const baseDate = DateTime.now().setZone("Europe/London").toISODate();
+    return DateTime.fromISO(`${baseDate}T${timeString}`, {
+      zone: "Europe/London",
+    }).toUTC().toISO();
+  };
+
+  const fetchSlots = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/slots`);
+      setSlots(response.data);
+    } catch (err) {
+      console.error("Error fetching slots:", err);
+      setError("Failed to fetch slots. Please try again.");
     }
+  };
 
-    const payload = {
-      slotName: formData.slotName,
-      startDate: newStart,
-      endDate: newEnd,
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
 
     try {
-      // Post the new slot
-      await axios.post("http://localhost:5000/api/slots", payload);
+      const newStart = formatToUTC(formData.startDate);
+      const newEnd = formatToUTC(formData.endDate);
 
-      // Re-fetch the slots to update the UI
-      const response = await axios.get("http://localhost:5000/api/slots");
-      setSlots(response.data);
+      if (checkTimeConflict(newStart, newEnd)) {
+        setError("Time slot overlaps with an existing shift.");
+        return;
+      }
 
-      // Clear form
-      setFormData({
-        slotName: "",
-        startDate: "",
-        endDate: "",
+      await axios.post(`${API_URL}/slots`, {
+        slotName: formData.slotName,
+        startDate: newStart,
+        endDate: newEnd,
       });
+
+      await fetchSlots();
+      setFormData({ slotName: "", startDate: "", endDate: "" });
     } catch (error) {
       console.error("Failed to add slot:", error);
       setError("Failed to add slot. Please try again.");
     }
   };
 
-  const timeSlots = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const hour = String(h).padStart(2, "0");
-      const minute = String(m).padStart(2, "0");
-      timeSlots.push(`${hour}:${minute}`);
-    }
-  }
-
   const toggleSlot = (id) => {
-    setOpenSlotId(openSlotId === id ? null : id);
+    setOpenSlotId(prev => prev === id ? null : id);
   };
 
   const handleUpdate = (id) => {
@@ -123,8 +121,8 @@ function Settings() {
       setEditSlotId(id);
       setEditFormData({
         slotName: slotToEdit.slotName,
-        startDate: slotToEdit.startDate,
-        endDate: slotToEdit.endDate,
+        startDate: formatTime(slotToEdit.startDate, "HH:mm"),
+        endDate: formatTime(slotToEdit.endDate, "HH:mm"),
       });
     }
   };
@@ -132,36 +130,22 @@ function Settings() {
   const handleSaveUpdate = async (id) => {
     setError("");
 
-    const baseDate = DateTime.now().setZone("Europe/London").toISODate();
-
-    const updatedStart = DateTime.fromISO(
-      `${baseDate}T${editFormData.startDate}`,
-      {
-        zone: "Europe/London",
-      }
-    )
-      .toUTC()
-      .toISO();
-
-    const updatedEnd = DateTime.fromISO(`${baseDate}T${editFormData.endDate}`, {
-      zone: "Europe/London",
-    })
-      .toUTC()
-      .toISO();
-
-    const payload = {
-      slotName: editFormData.slotName,
-      startDate: updatedStart,
-      endDate: updatedEnd,
-    };
-
     try {
-      await axios.put(`http://localhost:5000/api/slots/${id}`, payload);
+      const updatedStart = formatToUTC(editFormData.startDate);
+      const updatedEnd = formatToUTC(editFormData.endDate);
 
-      // Refresh list
-      const response = await axios.get("http://localhost:5000/api/slots");
-      setSlots(response.data);
+      if (checkTimeConflict(updatedStart, updatedEnd, id)) {
+        setError("Updated time slot overlaps with an existing shift.");
+        return;
+      }
 
+      await axios.put(`${API_URL}/slots/${id}`, {
+        slotName: editFormData.slotName,
+        startDate: updatedStart,
+        endDate: updatedEnd,
+      });
+
+      await fetchSlots();
       setEditSlotId(null);
     } catch (error) {
       console.error("Failed to update slot:", error);
@@ -170,250 +154,233 @@ function Settings() {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this slot?"
-    );
-    if (!confirmed) return;
+    if (!window.confirm("Are you sure you want to delete this slot?")) return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/slots/${id}`);
-      const response = await axios.get("http://localhost:5000/api/slots");
-      setSlots(response.data);
+      await axios.delete(`${API_URL}/slots/${id}`);
+      await fetchSlots();
     } catch (error) {
       console.error("Failed to delete slot:", error);
       setError("Failed to delete slot. Please try again.");
     }
   };
 
-  const formatTime = (isoString) =>
-    DateTime.fromISO(isoString).setZone("Europe/London").toFormat("HH:mm");
+  const formatTime = (isoString, format = "HH:mm") => {
+    return DateTime.fromISO(isoString).setZone("Europe/London").toFormat(format);
+  };
 
   useEffect(() => {
-    const fetchSlots = async () => {
-      try {
-        const response = await axios.get("http://localhost:5000/api/slots");
-        setSlots(response.data);
-      } catch (err) {
-        console.error("Error fetching slots:", err);
-      }
-    };
-
     fetchSlots();
   }, []);
 
   return (
-    <>
-      <div className="min-h-screen flex flex-col items-center  bg-gray-100 p-6">
+    <div className="min-h-screen flex flex-col items-center bg-gray-100 p-6">
       <div className="w-full max-w-4xl mb-8">
         <h3 className="text-3xl font-bold self-start mb-4">Settings</h3>
         <h5 className="text-xl font-bold">Shift Slots Management</h5>
+      </div>
+
+      {error && (
+        <div className="bg-red-100 text-red-700 px-4 py-2 rounded-xl font-medium mb-4 max-w-4xl w-full text-center">
+          {error}
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-4"
+      >
+        <p className="text-2xl font-bold">Add New Shift Slot</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="flex flex-col space-y-1 col-span-2">
+            <label className="flex items-center gap-2 text-gray-700 font-medium text-sm">
+              Shift Name (e.g., Morning Shift)
+            </label>
+            <input
+              type="text"
+              name="slotName"
+              value={formData.slotName}
+              onChange={handleChange}
+              className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              required
+            />
+          </div>
+          <div className="flex flex-col space-y-4 col-span-2">
+            <label>Start Time</label>
+            <select
+              name="startDate"
+              value={formData.startDate}
+              onChange={handleChange}
+              className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              required
+            >
+              <option value="">Select start time</option>
+              {timeSlots.map((time, index) => (
+                <option key={index} value={time}>
+                  {time}
+                </option>
+              ))}
+            </select>
+
+            <label>End Time</label>
+            <select
+              name="endDate"
+              value={formData.endDate}
+              onChange={handleChange}
+              className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              required
+            >
+              <option value="">Select end time</option>
+              {timeSlots.map((time, index) => (
+                <option key={index} value={time}>
+                  {time}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {error && (
-          <div className="bg-red-100 text-red-700 px-4 py-2 rounded-xl font-medium mb-4 max-w-4xl w-full text-center">
-            {error}
-          </div>
-        )}
+        <div className="text-left">
+          <button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 cursor-pointer"
+          >
+            Add Slot
+          </button>
+        </div>
+      </form>
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-4"
-        >
-          <p className="text-2xl font-bold text">Add New Shift Slot</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {/* Clinic Name */}
-            <div className="flex flex-col space-y-1 col-span-2">
-              <label className="flex items-center gap-2 text-gray-700 font-medium text-sm">
-                Shift Name (e.g., Morning Shift)
-              </label>
-              <input
-                type="text"
-                name="slotName"
-                value={formData.slotName}
-                onChange={handleChange}
-                className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-            </div>
-            <div className="flex flex-col space-y-4 col-span-2">
-              <label htmlFor="">Start Time</label>
-              <select
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                {timeSlots.map((time, index) => (
-                  <option key={index} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                name="endDate"
-                value={formData.endDate}
-                onChange={handleChange}
-                className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                {timeSlots.map((time, index) => (
-                  <option key={index} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="text-left">
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 cursor-pointer"
+      <div className="w-full max-w-4xl space-y-4 mt-10">
+        <h3 className="text-2xl font-bold">View and Edit Shift Slots</h3>
+        {slots.map((slot) => (
+          <div
+            key={slot._id}
+            className="bg-white rounded-3xl overflow-hidden transition-all duration-300"
+          >
+            <div
+              onClick={() => toggleSlot(slot._id)}
+              className="flex items-center justify-between cursor-pointer px-6 py-4 bg-white"
             >
-              Add Slot
-            </button>
-          </div>
-        </form>
+              <p className="font-semibold text-lg">{slot.slotName}</p>
+              {openSlotId === slot._id ? (
+                <FiChevronUp className="w-5 h-5" />
+              ) : (
+                <FiChevronDown className="w-5 h-5" />
+              )}
+            </div>
 
-        <div className="w-full max-w-4xl space-y-4 mt-10">
-          <h3 className="text-2xl font-bold">View and Edit Shift Slots</h3>
-          {slots.map((slot) => {
-            const startTimeUK = DateTime.fromISO(slot.startDate)
-              .setZone("Europe/London")
-              .toFormat("HH:mm");
-            const endTimeUK = DateTime.fromISO(slot.endDate)
-              .setZone("Europe/London")
-              .toFormat("HH:mm");
+            {openSlotId === slot._id && (
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="flex flex-col space-y-1 col-span-2">
+                    <label className="text-gray-700 text-sm font-medium">
+                      Shift Name
+                    </label>
+                    {editSlotId === slot._id ? (
+                      <input
+                        type="text"
+                        name="slotName"
+                        value={editFormData.slotName}
+                        onChange={handleEditChange}
+                        className="border p-3 rounded-lg"
+                        required
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={slot.slotName}
+                        disabled
+                        className="border p-3 rounded-lg bg-gray-100"
+                      />
+                    )}
+                  </div>
 
-            return (
-              <div
-                key={slot._id}
-                className="bg-white rounded-3xl overflow-hidden transition-all duration-300"
-              >
-                {/* Header */}
-                <div
-                  onClick={() => toggleSlot(slot._id)}
-                  className="flex items-center justify-between cursor-pointer px-6 py-4 bg-white"
-                >
-                  <p className="font-semibold text-lg">{slot.slotName}</p>
-                  {openSlotId === slot._id ? (
-                    <FiChevronUp className="w-5 h-5" />
-                  ) : (
-                    <FiChevronDown className="w-5 h-5" />
-                  )}
+                  <div className="flex flex-col space-y-1 col-span-2">
+                    <label>Start Time</label>
+                    {editSlotId === slot._id ? (
+                      <select
+                        name="startDate"
+                        value={editFormData.startDate}
+                        onChange={handleEditChange}
+                        className="border p-3 rounded-lg"
+                        required
+                      >
+                        {timeSlots.map((time, index) => (
+                          <option key={index} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="p-3 bg-gray-100 rounded-lg border">
+                        {formatTime(slot.startDate)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col space-y-1 col-span-2">
+                    <label>End Time</label>
+                    {editSlotId === slot._id ? (
+                      <select
+                        name="endDate"
+                        value={editFormData.endDate}
+                        onChange={handleEditChange}
+                        className="border p-3 rounded-lg"
+                        required
+                      >
+                        {timeSlots.map((time, index) => (
+                          <option key={index} value={time}>
+                            {time}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="p-3 bg-gray-100 rounded-lg border">
+                        {formatTime(slot.endDate)}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Body */}
-                {openSlotId === slot._id && (
-                  <div className="p-6 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="flex flex-col space-y-1 col-span-2">
-                        <label className="text-gray-700 text-sm font-medium">
-                          Shift Name
-                        </label>
-                        {editSlotId === slot._id ? (
-                          <input
-                            type="text"
-                            name="slotName"
-                            value={editFormData.slotName}
-                            onChange={handleEditChange}
-                            className="border p-3 rounded-lg"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={slot.slotName}
-                            disabled
-                            className="border p-3 rounded-lg bg-gray-100"
-                          />
-                        )}
-                      </div>
-
-                      <div className="flex flex-col space-y-1 col-span-2">
-                        <label>Start Time</label>
-                        {editSlotId === slot._id ? (
-                          <select
-                            name="startDate"
-                            value={editFormData.startDate}
-                            onChange={handleEditChange}
-                            className="border p-3 rounded-lg"
-                          >
-                            {timeSlots.map((time, index) => (
-                              <option key={index} value={time}>
-                                {time}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <p className="p-3 bg-gray-100 rounded-lg border">
-                            {formatTime(slot.startDate)}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col space-y-1 col-span-2">
-                        <label>End Time</label>
-                        {editSlotId === slot._id ? (
-                          <select
-                            name="endDate"
-                            value={editFormData.endDate}
-                            onChange={handleEditChange}
-                            className="border p-3 rounded-lg"
-                          >
-                            {timeSlots.map((time, index) => (
-                              <option key={index} value={time}>
-                                {time}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <p className="p-3 bg-gray-100 rounded-lg border">
-                            {formatTime(slot.endDate)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-x-4">
-                      {editSlotId === slot._id ? (
-                        <>
-                          <button
-                            onClick={() => handleSaveUpdate(slot._id)}
-                            className="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-full cursor-pointer"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => setEditSlotId(null)}
-                            className="bg-gray-400 hover:bg-gray-500 text-white py-2 px-6 rounded-full cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleUpdate(slot._id)}
-                            className="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-6 rounded-full cursor-pointer"
-                          >
-                            Update
-                          </button>
-                          <button
-                            onClick={() => handleDelete(slot._id)}
-                            className="bg-red-500 hover:bg-red-600 text-white py-2 px-6 rounded-full cursor-pointer"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div className="space-x-4">
+                  {editSlotId === slot._id ? (
+                    <>
+                      <button
+                        onClick={() => handleSaveUpdate(slot._id)}
+                        className="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-full cursor-pointer"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditSlotId(null)}
+                        className="bg-gray-400 hover:bg-gray-500 text-white py-2 px-6 rounded-full cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleUpdate(slot._id)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-6 rounded-full cursor-pointer"
+                      >
+                        Update
+                      </button>
+                      <button
+                        onClick={() => handleDelete(slot._id)}
+                        className="bg-red-500 hover:bg-red-600 text-white py-2 px-6 rounded-full cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            );
-          })}
-        </div>
+            )}
+          </div>
+        ))}
       </div>
-    </>
+    </div>
   );
 }
 
