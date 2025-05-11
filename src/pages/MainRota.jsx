@@ -1,7 +1,7 @@
 import React from "react";
 
 const MainRota = () => {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const days = ["gitMon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const sessions = ["Morning", "Afternoon", "Evening"];
   const clinics = [
     { name: "Clinic A", location: "Central London" },
