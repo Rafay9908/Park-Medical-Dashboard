@@ -3,13 +3,17 @@ import axios from "axios";
 
 const Main = () => {
   const [clinicData, setClinicData] = useState(null);
+  const [cliniciansData, setCliniciansData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+  
   useEffect(() => {
     const fetchClinicData = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/clinics");
+        const response = await axios.get(`${API_URL}/clinics`);
         setClinicData(response.data);
         setLoading(false);
       } catch (err) {
@@ -18,12 +22,26 @@ const Main = () => {
       }
     };
 
+    const fetchClinicansData = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/clinicians`);
+        setCliniciansData(response.data);
+         setLoading(false);
+      } catch (error) {
+        console.error("Error Fetching Clinicians Count", error);
+         setLoading(false);
+      }
+    }
+
+    fetchClinicansData()
     fetchClinicData();
+    
   }, []);
 
-  // Calculate active clinics count
   const activeClinicsCount = clinicData?.filter(clinic => clinic.status === "active").length || 0;
   const totalClinicsCount = clinicData?.length || 0;
+
+  const totalClinicianCount = cliniciansData?.length || 0; 
 
   if (loading) {
     return (
@@ -85,10 +103,9 @@ const Main = () => {
             </div>
           </div>
           
-          {/* Total Clinicians Card */}
           <div className="bg-green-50 rounded-lg p-4 border border-green-100">
             <h3 className="text-gray-600 font-medium mb-2">Total Clinicians</h3>
-            <span className="text-3xl font-bold text-gray-800">0</span>
+            <span className="text-3xl font-bold text-gray-800">{totalClinicianCount}</span>
           </div>
         </div>
       </div>

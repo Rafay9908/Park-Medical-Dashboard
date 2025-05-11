@@ -9,7 +9,7 @@ function SignUp() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'user' // Default role
+    role: 'user' 
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -49,7 +49,6 @@ function SignUp() {
         formData.password,
         formData.role
       );
-      // Add navigation after successful registration
       navigate(location.state?.from?.pathname || '/', { replace: true });
     } catch (err) {
       console.error('Registration error:', err);

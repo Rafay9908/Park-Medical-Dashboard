@@ -12,14 +12,12 @@ export default function Layout() {
     navigate("/login");
   };
 
-  // Only show navigation if user is authenticated
   if (!user) {
-    return <Outlet />; // Just render content for non-authenticated pages
+    return <Outlet />; 
   }
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
       <aside
         className={`bg-gray-800 text-white p-6 space-y-4 transition-all duration-300 ${
           isOpen ? "w-64" : "w-16"
@@ -113,7 +111,6 @@ export default function Layout() {
             {isOpen ? "Analytics" : "📊"}
           </NavLink>
 
-          {/* Additional icons for collapsed state */}
           {!isOpen && (
             <>
               <NavLink
@@ -139,7 +136,6 @@ export default function Layout() {
             </>
           )}
 
-          {/* Full text links when open */}
           {isOpen && (
             <>
               <NavLink
@@ -162,12 +158,33 @@ export default function Layout() {
               >
                 Settings
               </NavLink>
+
+               <NavLink
+                to="/historical-booking"
+                className={({ isActive }) =>
+                  isActive
+                    ? "bg-gray-700 p-2 rounded font-bold"
+                    : "hover:bg-gray-700 p-2 rounded"
+                }
+              >
+                Historical Booking
+              </NavLink>
+
+               <NavLink
+                to="/travel-cost-planner"
+                className={({ isActive }) =>
+                  isActive
+                    ? "bg-gray-700 p-2 rounded font-bold"
+                    : "hover:bg-gray-700 p-2 rounded"
+                }
+              >
+                Travel Cost Planner
+              </NavLink>           
             </>
           )}
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-6 bg-gray-100 overflow-y-auto">
         <Outlet />
       </main>

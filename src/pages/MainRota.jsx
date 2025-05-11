@@ -1,9 +1,8 @@
 import React from "react";
 
 const MainRota = () => {
-  // Sample data
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const sessions = ["Morning", "Afternoon", "Evening"]; // Changed to more intuitive session names
+  const sessions = ["Morning", "Afternoon", "Evening"];
   const clinics = [
     { name: "Clinic A", location: "Central London" },
     { name: "Clinic B", location: "West London" },
@@ -17,10 +16,9 @@ const MainRota = () => {
     { name: "Clinic J", location: "Islington" },
   ];
   
-  // Sample schedule data
   const generateSampleSchedule = () => {
     const schedule = {};
-    clinics.forEach(clinic => {
+    clinics.forEach(clinic => {   
       schedule[clinic.name] = {};
       days.forEach(day => {
         schedule[clinic.name][day] = {
@@ -41,7 +39,6 @@ const MainRota = () => {
       
       <div className="overflow-x-auto">
         <div className="inline-block min-w-full bg-white rounded-lg shadow overflow-hidden">
-          {/* Clinic Locations Header */}
           <div className="flex border-b">
             <div className="w-48 flex-shrink-0 border-r bg-gray-100 p-2 font-medium">
               <div className="h-10 flex items-center justify-between">
@@ -57,10 +54,8 @@ const MainRota = () => {
             ))}
           </div>
           
-          {/* Days and Sessions */}
           {days.map(day => (
             <React.Fragment key={day}>
-              {/* Day Header Row */}
               <div className="flex border-b">
                 <div className="w-48 flex-shrink-0 border-r bg-gray-50 p-2 font-medium">
                   {day}
@@ -72,7 +67,6 @@ const MainRota = () => {
                 ))}
               </div>
               
-              {/* Session Rows for this Day */}
               {sessions.map(session => (
                 <div key={`${day}-${session}`} className="flex border-b last:border-b-0">
                   <div className="w-48 flex-shrink-0 border-r p-2 pl-4 text-sm text-gray-600 bg-gray-50">
@@ -99,7 +93,6 @@ const MainRota = () => {
         </div>
       </div>
       
-      {/* Legend and Controls */}
       <div className="mt-6 flex flex-wrap justify-between items-center gap-4">
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center">

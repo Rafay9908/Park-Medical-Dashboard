@@ -1,21 +1,28 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import { FaTimes, FaChevronDown, FaEdit, FaTrash } from "react-icons/fa";
+import { useClinicians } from "../context/CliniciansContext";
 
 const Clinicians = () => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const {
+    clinicians,
+    clinics,
+    loading,
+    error,
+    addClinician,
+    deleteClinician
+  } = useClinicians();
 
   const [formData, setFormData] = useState({
     clinicianName: "",
     preferredClinic: "",
-    preferredTimeSlot: "",
-    minHoursPerWeek: 0,
-    maxHoursPerWeek: 0,
-    shiftsPerDay: 0,
+    preferredTimeSlot: "Afternoon Shift",
+    minHoursPerWeek: 3,
+    maxHoursPerWeek: 10,
+    shiftsPerDay: 1,
     workingDay: [],
     homePostcode: "",
     nearestStation: "",
-    maxTravelTime: 0,
+    maxTravelTime: 30,
     startDate: "",
     endDate: "",
     contactEmail: "",
@@ -24,12 +31,9 @@ const Clinicians = () => {
 
   const [selectedDays, setSelectedDays] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [clinicians, setClinicians] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [clinics, setClinics] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentId, setCurrentId] = useState(null);
 
   const allDays = [
     "Monday",
@@ -41,48 +45,14 @@ const Clinicians = () => {
     "Sunday",
   ];
 
-  // Fetch clinicians data
-  useEffect(() => {
-    const fetchClinicians = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/clinicians`);
-        setClinicians(response.data);
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error fetching clinicians:", error);
-        setError(error.message);
-        setIsLoading(false);
-      }
-    };
-
-    fetchClinicians();
-  }, []);
-
-  // Fetch clinics data
-  useEffect(() => {
-    const fetchClinics = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/clinics`);
-        setClinics(response.data);
-      } catch (err) {
-        setError(err.message);
-        console.error("Error fetching clinics:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchClinics();
-  }, []);
-
   const handleDelete = async (id) => {
-    try {
-      await axios.delete(`${API_URL}/clinicians/${id}`);
-      setClinicians(clinicians.filter((clinician) => clinician._id !== id));
-      alert("Clinician deleted successfully!");
-    } catch (error) {
-      console.error("Error deleting clinician:", error);
-      alert("Failed to delete clinician. Please try again.");
+    if (window.confirm("Are you sure you want to delete this clinician?")) {
+      try {
+        await deleteClinician(id);
+      } catch (error) {
+        console.error("Error deleting clinician:", error);
+        alert("Failed to delete clinician. Please try again.");
+      }
     }
   };
 
@@ -101,6 +71,51 @@ const Clinicians = () => {
     
     setSelectedDays(newSelectedDays);
     setFormData((prev) => ({ ...prev, workingDay: newSelectedDays }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      clinicianName: "",
+      preferredClinic: "",
+      preferredTimeSlot: "Afternoon Shift",
+      minHoursPerWeek: 3,
+      maxHoursPerWeek: 10,
+      shiftsPerDay: 1,
+      workingDay: [],
+      homePostcode: "",
+      nearestStation: "",
+      maxTravelTime: 30,
+      startDate: "",
+      endDate: "",
+      contactEmail: "",
+      contactPhone: ""
+    });
+    setSelectedDays([]);
+    setIsEditing(false);
+    setCurrentId(null);
+  };
+
+  const handleEdit = (clinician) => {
+    setFormData({
+      clinicianName: clinician.clinicianName,
+      preferredClinic: clinician.preferredClinic,
+      preferredTimeSlot: clinician.preferredTimeSlot || "Afternoon Shift",
+      minHoursPerWeek: clinician.minHoursPerWeek || 3,
+      maxHoursPerWeek: clinician.maxHoursPerWeek || 10,
+      shiftsPerDay: clinician.shiftsPerDay || 1,
+      workingDay: clinician.workingDay || [],
+      homePostcode: clinician.homePostcode || "",
+      nearestStation: clinician.nearestStation || "",
+      maxTravelTime: clinician.maxTravelTime || 30,
+      startDate: clinician.startDate || "",
+      endDate: clinician.endDate || "",
+      contactEmail: clinician.contactEmail || "",
+      contactPhone: clinician.contactPhone || ""
+    });
+    setSelectedDays(clinician.workingDay || []);
+    setIsEditing(true);
+    setCurrentId(clinician._id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSubmit = async (e) => {
@@ -129,46 +144,25 @@ const Clinicians = () => {
         workingDay: selectedDays,
       };
       
-      const response = await axios.post(`${API_URL}/clinicians`, dataToSend, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      if (isEditing && currentId) {
+        await addClinician(currentId, dataToSend);
+        alert("Clinician updated successfully!");
+      } else {
+        await addClinician(dataToSend);
+        alert("Clinician added successfully!");
+      }
       
-      // Add the new clinician to the list
-      setClinicians([...clinicians, response.data]);
-      
-      // Reset the form
-      setFormData({
-        clinicianName: "",
-        preferredClinic: "",
-        preferredTimeSlot: "Afternoon Shift",
-        minHoursPerWeek: 3,
-        maxHoursPerWeek: 10,
-        shiftsPerDay: 10,
-        workingDay: [],
-        homePostcode: "74000",
-        nearestStation: "Bexley Road",
-        maxTravelTime: 3,
-        startDate: "",
-        endDate: "",
-        contactEmail: "sample@gmail.com",
-        contactPhone: "0300 0000000"
-      });
-      setSelectedDays([]);
-
-      alert("Clinician added successfully!");
+      resetForm();
     } catch (error) {
       console.error("Error submitting form:", error);
       const errorMessage = error.response?.data?.message || 
                          error.message || 
-                         "Failed to add clinician. Please try again.";
+                         "Failed to submit clinician data. Please try again.";
       setSubmitError(errorMessage);
-      alert(`Error: ${errorMessage}`);
     }
   };
 
-  if (loading) return <div className="p-2 text-gray-500">Loading clinics...</div>;
+  if (loading && !clinicians.length) return <div className="p-2 text-gray-500">Loading data...</div>;
   if (error) return <div className="p-2 text-red-500">Error loading data: {error}</div>;
 
   return (
@@ -190,6 +184,10 @@ const Clinicians = () => {
         className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-8"
       >
         <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">
+            {isEditing ? "Edit Clinician" : "Add New Clinician"}
+          </h2>
+
           <label className="flex items-center gap-2 text-gray-700 font-medium text-sm">
             Clinician Name
           </label>
@@ -436,12 +434,21 @@ const Clinicians = () => {
             />
           </div>
 
-          <div className="text-center mt-6">
+          <div className="flex justify-between mt-6">
+            {isEditing && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-8 rounded-full cursor-pointer"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full cursor-pointer"
+              className={`${isEditing ? "ml-auto" : "mx-auto"} bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full cursor-pointer`}
             >
-              Add Clinician
+              {isEditing ? "Update Clinician" : "Add Clinician"}
             </button>
           </div>
         </div>
@@ -450,7 +457,7 @@ const Clinicians = () => {
       <div className="bg-white p-8 rounded-3xl w-full max-w-4xl mt-8">
         <h3 className="text-2xl font-bold mb-6">Existing Clinicians</h3>
 
-        {isLoading ? (
+        {loading ? (
           <p>Loading clinicians...</p>
         ) : clinicians.length === 0 ? (
           <p>No clinicians found.</p>
@@ -498,14 +505,7 @@ const Clinicians = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
                         className="text-indigo-600 hover:text-indigo-900 mr-4"
-                        onClick={() => {
-                          setFormData({
-                            ...clinician,
-                            _id: clinician._id,
-                          });
-                          setSelectedDays(clinician.workingDay || []);
-                          window.scrollTo({ top: 0, behavior: "smooth" });
-                        }}
+                        onClick={() => handleEdit(clinician)}
                       >
                         <FaEdit />
                       </button>

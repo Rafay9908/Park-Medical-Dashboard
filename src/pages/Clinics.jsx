@@ -1,8 +1,5 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
-
-const apiUrl = import.meta.env.VITE_API_URL;
-
+import { useState } from "react";
+import { useClinics } from "../context/ClinicsContext";
 import {
   FaClinicMedical,
   FaMapMarkerAlt,
@@ -31,99 +28,22 @@ const daysOfWeek = [
 ];
 
 export default function Clinics() {
-  const [formData, setFormData] = useState({
-    clinicName: "",
-    address: "",
-    ownerName: "",
-    localStation: "",
-    nearestBus: "",
-    wifiDetails: "",
-    checkInInstructions: "",
-    tflZone: "1",
-    minimumSessionPerWeek: 1,
-    walkingMinutesToStations: 5,
-    wheelchairAccessible: false,
-    operatingHours: daysOfWeek.map(day => ({
-      day,
-      open: true,
-      openingTime: "08:00",
-      closingTime: "20:00"
-    }))
-  });
+  const {
+    clinics,
+    isLoading,
+    error,
+    formData,
+    editingId,
+    setFormData,
+    fetchClinics,
+    saveClinic,
+    deleteClinic,
+    loadClinicForEdit,
+    resetForm
+  } = useClinics();
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [clinics, setClinics] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-
-  // Fetch all clinics on component mount
-  useEffect(() => {
-    fetchClinics();
-  }, []);
-
-  // Fetch all clinics using Axios
-  const fetchClinics = async () => {
-    try {
-      const response = await axios.get(`${apiUrl}/clinics`);
-      setClinics(response.data);
-    } catch (error) {
-      console.error('Error fetching clinics:', error);
-      alert('Failed to fetch clinics. Please try again.');
-    }
-  };
-
-  // Add or update clinic using Axios
-  const saveClinic = async (clinicData, id = null) => {
-    try {
-      if (id) {
-        const response = await axios.put(`${apiUrl}/clinics/${id}`, clinicData);
-        return response.data;
-      } else {
-        const response = await axios.post(`${apiUrl}/clinics`, clinicData);
-        return response.data;
-      }
-    } catch (error) {
-      console.error('Error saving clinic:', error);
-      throw error.response?.data?.message || 'Failed to save clinic';
-    }
-  };
-
-  // Delete clinic using Axios
-  const deleteClinic = async (id) => {
-    try {
-      await axios.delete(`${apiUrl}/clinics/${id}`);
-    } catch (error) {
-      console.error('Error deleting clinic:', error);
-      throw error.response?.data?.message || 'Failed to delete clinic';
-    }
-  };
-
-  // Load clinic data for editing
-  const loadClinicForEdit = (clinic) => {
-    setEditingId(clinic._id);
-    setFormData({
-      clinicName: clinic.clinicName,
-      address: clinic.address,
-      ownerName: clinic.ownerName || "",
-      localStation: clinic.localStation || "",
-      nearestBus: clinic.nearestBus || "",
-      wifiDetails: clinic.wifiDetails || "",
-      checkInInstructions: clinic.checkInInstructions || "",
-      tflZone: clinic.tflZone || "1",
-      minimumSessionPerWeek: clinic.minimumSessionPerWeek || 1,
-      walkingMinutesToStations: clinic.walkingMinutesToStations || 5,
-      wheelchairAccessible: clinic.wheelchairAccessible || false,
-      operatingHours: daysOfWeek.map(day => {
-        const hourData = clinic.operatingHours?.find(h => h.day === day);
-        return hourData || {
-          day,
-          open: true,
-          openingTime: "08:00",
-          closingTime: "20:00"
-        };
-      })
-    });
-  };
 
   const handleTimeChange = (index, field, value) => {
     const updatedHours = [...formData.operatingHours];
@@ -199,7 +119,6 @@ export default function Clinics() {
       await saveClinic(dataToSend, editingId);
       alert(`Clinic ${editingId ? 'updated' : 'added'} successfully!`);
       resetForm();
-      fetchClinics();
     } catch (error) {
       console.error('Error:', error);
       alert(`Error: ${error}`);
@@ -208,37 +127,11 @@ export default function Clinics() {
     }
   };
 
-  console.log('data aya hai', formData);
-
-  const resetForm = () => {
-    setFormData({
-      clinicName: "",
-      address: "",
-      ownerName: "",
-      localStation: "",
-      nearestBus: "",
-      wifiDetails: "",
-      checkInInstructions: "",
-      tflZone: "1",
-      minimumSessionPerWeek: 1,
-      walkingMinutesToStations: 5,
-      wheelchairAccessible: false,
-      operatingHours: daysOfWeek.map(day => ({
-        day,
-        open: true,
-        openingTime: "08:00",
-        closingTime: "20:00"
-      }))
-    });
-    setEditingId(null);
-  };
-
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this clinic?')) {
       try {
         await deleteClinic(id);
         alert('Clinic deleted successfully');
-        fetchClinics();
       } catch (error) {
         alert('Failed to delete clinic');
       }
@@ -285,6 +178,12 @@ export default function Clinics() {
       <div className="w-full max-w-4xl mb-8">
         <h3 className="text-3xl font-bold self-start">🏥 Clinics Management</h3>
       </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 w-full max-w-4xl">
+          {error}
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -601,9 +500,9 @@ export default function Clinics() {
           <button
             type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoading}
           >
-            {isSubmitting 
+            {isSubmitting || isLoading
               ? 'Saving...' 
               : editingId 
                 ? 'Update Clinic' 
@@ -620,158 +519,167 @@ export default function Clinics() {
           </div>
           <button 
             onClick={fetchClinics}
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg"
+            disabled={isLoading}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50"
           >
-            Refresh Clinics
+            {isLoading ? 'Refreshing...' : 'Refresh Clinics'}
           </button>
         </div>
         
-        <div className="grid grid-cols-1 gap-4 mt-8">
-          {clinics.map((clinic) => (
-            <div
-              key={clinic._id}
-              className="bg-white rounded-xl p-4 transition-all duration-300"
-            >
+        {isLoading && !clinics.length ? (
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 mt-8">
+            {clinics.map((clinic) => (
               <div
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() =>
-                  setExpandedCard((prev) =>
-                    prev === clinic._id ? null : clinic._id
-                  )
-                }
+                key={clinic._id}
+                className="bg-white rounded-xl p-4 transition-all duration-300"
               >
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">
-                    {clinic.clinicName}
-                  </h3>
-                  <p className="text-gray-600">{clinic.address}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      loadClinicForEdit(clinic);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <FaEdit size={18} />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(clinic._id);
-                    }}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <FaTrash size={18} />
-                  </button>
-                  <span className="text-blue-600 font-semibold">
-                    {expandedCard === clinic._id ? (
-                      <FiChevronUp />
-                    ) : (
-                      <FiChevronDown />
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {expandedCard === clinic._id && (
-                <div className="mt-4 space-y-2 text-sm text-gray-700">
-                  <p>
-                    <strong>Owner:</strong> {clinic.ownerName || "Not specified"}
-                  </p>
-                  <p>
-                    <strong>Transport:</strong> {clinic.localStation || "Not specified"}, {clinic.nearestBus || "Not specified"}, Zone {clinic.tflZone || "Not specified"}
-                  </p>
-                  <p>
-                    <strong>Accessibility:</strong>{" "}
-                    {clinic.wheelchairAccessible ? "Wheelchair accessible" : "Not wheelchair accessible"},{" "}
-                    {clinic.walkingMinutesToStations || "Not specified"} min walk
-                  </p>
-                  <p>
-                    <strong>WiFi:</strong> {clinic.wifiDetails || "Not specified"}
-                  </p>
-                  <p>
-                    <strong>Minimum Sessions:</strong> {clinic.minimumSessionPerWeek || "Not specified"}
-                  </p>
-                  <p>
-                    <strong>Check-In Instructions:</strong>{" "}
-                    {clinic.checkInInstructions || "None"}
-                  </p>
-
-                  <div className="mt-4">
-                    <h4 className="text-lg font-semibold mt-4 mb-4 text-gray-800">
-                      Operating Hours
-                    </h4>
-                    <div className="space-y-4 mb-4">
-                      {daysOfWeek.map((day) => {
-                        const hour = clinic.operatingHours?.find(h => h.day === day) || {
-                          day,
-                          open: false,
-                          openingTime: null,
-                          closingTime: null
-                        };
-                        
-                        return (
-                          <div
-                            key={day}
-                            className="grid grid-cols-12 items-center gap-x-4"
-                          >
-                            <div className="col-span-3 font-medium text-gray-700 flex justify-center items-center">
-                              {day}
-                            </div>
-
-                            <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
-                              {hour.open && hour.openingTime ? 
-                                new Date(`2000-01-01T${hour.openingTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                                "--"}
-                            </div>
-
-                            <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
-                              {hour.open && hour.closingTime ? 
-                                new Date(`2000-01-01T${hour.closingTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                                "--"}
-                            </div>
-
-                            <div className="col-span-3 flex justify-center items-center gap-2">
-                              <div
-                                className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
-                                  hour.open
-                                    ? "bg-blue-600 border-blue-600"
-                                    : "bg-gray-200 border-gray-400"
-                                }`}
-                              >
-                                {hour.open && (
-                                  <svg
-                                    className="w-3 h-3 text-white"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="3"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                )}
-                              </div>
-                              <span className={`text-sm ${hour.open ? "text-green-600" : "text-red-600"}`}>
-                                {hour.open ? "Open" : "Closed"}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                <div
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() =>
+                    setExpandedCard((prev) =>
+                      prev === clinic._id ? null : clinic._id
+                    )
+                  }
+                >
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">
+                      {clinic.clinicName}
+                    </h3>
+                    <p className="text-gray-600">{clinic.address}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        loadClinicForEdit(clinic);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="text-blue-600 hover:text-blue-800"
+                      disabled={isLoading}
+                    >
+                      <FaEdit size={18} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(clinic._id);
+                      }}
+                      className="text-red-600 hover:text-red-800"
+                      disabled={isLoading}
+                    >
+                      <FaTrash size={18} />
+                    </button>
+                    <span className="text-blue-600 font-semibold">
+                      {expandedCard === clinic._id ? (
+                        <FiChevronUp />
+                      ) : (
+                        <FiChevronDown />
+                      )}
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+
+                {expandedCard === clinic._id && (
+                  <div className="mt-4 space-y-2 text-sm text-gray-700">
+                    <p>
+                      <strong>Owner:</strong> {clinic.ownerName || "Not specified"}
+                    </p>
+                    <p>
+                      <strong>Transport:</strong> {clinic.localStation || "Not specified"}, {clinic.nearestBus || "Not specified"}, Zone {clinic.tflZone || "Not specified"}
+                    </p>
+                    <p>
+                      <strong>Accessibility:</strong>{" "}
+                      {clinic.wheelchairAccessible ? "Wheelchair accessible" : "Not wheelchair accessible"},{" "}
+                      {clinic.walkingMinutesToStations || "Not specified"} min walk
+                    </p>
+                    <p>
+                      <strong>WiFi:</strong> {clinic.wifiDetails || "Not specified"}
+                    </p>
+                    <p>
+                      <strong>Minimum Sessions:</strong> {clinic.minimumSessionPerWeek || "Not specified"}
+                    </p>
+                    <p>
+                      <strong>Check-In Instructions:</strong>{" "}
+                      {clinic.checkInInstructions || "None"}
+                    </p>
+
+                    <div className="mt-4">
+                      <h4 className="text-lg font-semibold mt-4 mb-4 text-gray-800">
+                        Operating Hours
+                      </h4>
+                      <div className="space-y-4 mb-4">
+                        {daysOfWeek.map((day) => {
+                          const hour = clinic.operatingHours?.find(h => h.day === day) || {
+                            day,
+                            open: false,
+                            openingTime: null,
+                            closingTime: null
+                          };
+                          
+                          return (
+                            <div
+                              key={day}
+                              className="grid grid-cols-12 items-center gap-x-4"
+                            >
+                              <div className="col-span-3 font-medium text-gray-700 flex justify-center items-center">
+                                {day}
+                              </div>
+
+                              <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
+                                {hour.open && hour.openingTime ? 
+                                  new Date(`2000-01-01T${hour.openingTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                                  "--"}
+                              </div>
+
+                              <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
+                                {hour.open && hour.closingTime ? 
+                                  new Date(`2000-01-01T${hour.closingTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
+                                  "--"}
+                              </div>
+
+                              <div className="col-span-3 flex justify-center items-center gap-2">
+                                <div
+                                  className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
+                                    hour.open
+                                      ? "bg-blue-600 border-blue-600"
+                                      : "bg-gray-200 border-gray-400"
+                                  }`}
+                                >
+                                  {hour.open && (
+                                    <svg
+                                      className="w-3 h-3 text-white"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="3"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span className={`text-sm ${hour.open ? "text-green-600" : "text-red-600"}`}>
+                                  {hour.open ? "Open" : "Closed"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

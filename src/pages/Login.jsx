@@ -39,15 +39,12 @@ function Login() {
 
     try {
       await login(formData.email, formData.password);
-      // Redirect to the intended page or dashboard
     
       navigate(location.state?.from?.pathname || '/', { replace: true });
 
-      // const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     } catch (err) {
       console.error('Login error:', err);
-      // Errors are already handled in the auth context
     }
   };
 
@@ -79,7 +76,6 @@ function Login() {
         )}
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {/* Email Field */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email
@@ -102,7 +98,6 @@ function Login() {
             {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
           </div>
 
-          {/* Password Field */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Password
@@ -136,7 +131,6 @@ function Login() {
             {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
           </div>
 
-          {/* Remember Me & Forgot Password */}
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <input
@@ -159,7 +153,6 @@ function Login() {
             </button>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -169,7 +162,6 @@ function Login() {
           </button>
         </form>
 
-        {/* Sign Up Link */}
         <div className="mt-6 text-center">
           <span className="text-sm text-gray-600">Don't have an account? </span>
           <button

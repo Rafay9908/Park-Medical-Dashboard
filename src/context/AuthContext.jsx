@@ -9,7 +9,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Set axios default headers if token exists
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -21,7 +20,6 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, [token]);
 
-  // Register user
   const register = async (name, email, password, role) => {
     try {
       const res = await axios.post('http://localhost:5000/api/users/register', { name, email, password, role });
@@ -33,7 +31,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login user
   const login = async (email, password) => {
     try {
       const res = await axios.post('http://localhost:5000/api/users/login', { email, password });
@@ -45,13 +42,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout user
   const logout = () => {
     setToken(null);
     setUser(null);
   };
 
-  // Check if user is authenticated
   const isAuthenticated = () => {
     return !!token;
   };
