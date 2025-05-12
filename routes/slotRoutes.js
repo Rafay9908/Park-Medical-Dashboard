@@ -8,4 +8,5 @@ router.get('/', slotController.getSlots);
 router.put('/:id', validateSlot, slotController.updateSlot);
 router.delete('/:id', slotController.deleteSlot);
 
+
 module.exports = router;

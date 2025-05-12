@@ -1,16 +1,26 @@
 const express = require('express');
-const rotaController = require('../controllers/rotaController');
-const authMiddleware = require('../middleware/authMiddleware');
-
 const router = express.Router();
+const rotaController = require('../controllers/rotaController');
 
-// Protected routes
-router.use(authMiddleware.protect);
+router.post('/', rotaController.createRota);
+router.get('/', rotaController.getAllRota);
+router.get('/:id', rotaController.getRotaById);
+router.put('/:id', rotaController.updateRota);
+router.delete('/:id', rotaController.deleteRota);
 
-router.post('/generate', authMiddleware.admin, rotaController.generateRota);
-router.get('/view', rotaController.getRotaView);
-router.get('/clinician/:id', rotaController.getClinicianSchedule);
-router.patch('/:id', rotaController.updateAssignment);
-router.delete('/:id', authMiddleware.admin, rotaController.deleteAssignment);
+module.exports = router;
+
+
+
+const generateWeeklyRota = require('../utils/generateWeeklyRota');
+
+router.post('/generate-weekly', async (req, res) => {
+  try {
+    const result = await generateWeeklyRota();
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 module.exports = router;
