@@ -1,28 +1,49 @@
 const mongoose = require('mongoose');
 
-const operatingHoursSchema = new mongoose.Schema({
-  day: { type: String, required: true },
-  open: { type: Boolean, required: true },
-  openingTime: { type: String },
-  closingTime: { type: String }
+const rotaSchema = new mongoose.Schema({
+  clinician: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Clinician', 
+    required: true 
+  },
+  slot: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Slot', 
+    required: true 
+  },
+  status: { 
+    type: String, 
+    enum: ['pending', 'confirmed', 'cancelled', 'completed'], 
+    default: 'confirmed' 
+  },
+  travelTime: Number, // in minutes
+  notes: String,
+  metadata: mongoose.Schema.Types.Mixed
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true } 
 });
 
-const rotaSchema = new mongoose.Schema({
-  rotaName: { type: String, required: true },
-  address: { type: String, required: true },
-  minimumSessionPerWeek: { type: Number, required: true },
-  operatingHours: [operatingHoursSchema],
-  
-  // Optional fields
-  ownerName: String,
-  localStation: String,
-  nearestBus: String,
-  tflZone: String,
-  checkInInstructions: String,
- wheelchairAccessible: Boolean,
-  wifiDetails: String,
-  walkingMinutesToStations: Number,
-  u_id: String
-}, { timestamps: true });
+// Prevent double bookings
+rotaSchema.index({ 
+  clinician: 1, 
+  slot: 1 
+}, { unique: true });
 
-module.exports = mongoose.model('rota', rotaSchema);
+// Add virtual population
+rotaSchema.virtual('clinicianDetails', {
+  ref: 'Clinician',
+  localField: 'clinician',
+  foreignField: '_id',
+  justOne: true
+});
+
+rotaSchema.virtual('slotDetails', {
+  ref: 'Slot',
+  localField: 'slot',
+  foreignField: '_id',
+  justOne: true
+});
+
+module.exports = mongoose.model('Rota', rotaSchema);
