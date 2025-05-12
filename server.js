@@ -30,9 +30,6 @@ app.use('/api/slots', slotRoutes);
 app.use('/api/clinics', clinicRoutes);
 app.use('/api/clinicians', clinicianRoutes);
 // app.use('/api/rota', rotaRoutes);
-=======
->>>>>>> 803a6539f07d4c4e40b900efc2903953a3df7893
-app.use('/api/rota', rotaRoutes);
-
+app.use('/api/rota',rotaRoutes)
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

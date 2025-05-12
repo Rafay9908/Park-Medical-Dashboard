@@ -15,11 +15,8 @@
     "haversine-distance": "^1.2.3",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.30.1",
-    "mongoose": "^7.8.7",
-<<<<<<< HEAD
+    "mongoose": "^7.8.6",
     "parkmedical_dashboard_backend": "file:",
-=======
->>>>>>> a09f62dab0a92ee3ed7e329620ec502fb7aebd61
     "swagger-ui-express": "^4.6.3"
   },
   "devDependencies": {
