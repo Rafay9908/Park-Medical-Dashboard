@@ -4,25 +4,31 @@ import axios from 'axios';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+
+  const storedAuth = localStorage.getItem('authData');
+  const initialAuth = storedAuth ? JSON.parse(storedAuth) : null;
+  
+  const [user, setUser] = useState(initialAuth?.user || null);
+  const [token, setToken] = useState(initialAuth?.token || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      localStorage.setItem('token', token);
+      localStorage.setItem('authData', JSON.stringify({ token, user }));
     } else {
       delete axios.defaults.headers.common['Authorization'];
-      localStorage.removeItem('token');
+      localStorage.removeItem('authData');
     }
     setLoading(false);
-  }, [token]);
+  }, [token, user]);
 
   const register = async (name, email, password, role) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/users/register', { name, email, password, role });
+      const res = await axios.post(`${API_URL}/users/register`, { name, email, password, role });
       setToken(res.data.token);
       setUser(res.data.user);
     } catch (err) {
@@ -33,7 +39,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const res = await axios.post('http://localhost:5000/api/users/login', { email, password });
+      const res = await axios.post(`${API_URL}/users/login`, { email, password });
       setToken(res.data.token);
       setUser(res.data.user);
     } catch (err) {
@@ -41,6 +47,8 @@ export const AuthProvider = ({ children }) => {
       throw err;
     }
   };
+console.log("Token", token)
+
 
   const logout = () => {
     setToken(null);

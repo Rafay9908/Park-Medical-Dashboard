@@ -50,6 +50,8 @@ function Settings() {
     }));
   };
 
+  console.log("Data", formData);
+
   const checkTimeConflict = (newStart, newEnd, excludeId = null) => {
     return slots.some((slot) => {
       if (excludeId && slot._id === excludeId) return false;
