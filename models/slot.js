@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 
 const slotSchema = new mongoose.Schema({
-  name: { type: String, required: true },
+  slotName: { type: String, required: true },
   clinic: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Clinic', 
-    required: true 
+    // required: true 
   },
-  startTime: { type: Date, required: true },
-  endTime: { type: Date, required: true },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
   requiredQualifications: [String],
   status: { 
     type: String, 
