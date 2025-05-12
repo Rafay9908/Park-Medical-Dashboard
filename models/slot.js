@@ -1,19 +1,24 @@
 const mongoose = require('mongoose');
 
 const slotSchema = new mongoose.Schema({
-  slotName: {
-    type: String,
-    required: true,
-    trim: true,
+  name: { type: String, required: true },
+  clinic: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Clinic', 
+    required: true 
   },
-  startDate: {
-    type: Date,
-    required: true,
+  startTime: { type: Date, required: true },
+  endTime: { type: Date, required: true },
+  requiredQualifications: [String],
+  status: { 
+    type: String, 
+    enum: ['open', 'assigned', 'completed', 'cancelled'], 
+    default: 'open' 
   },
-  endDate: {
-    type: Date,
-    required: true,
+  assignedClinician: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Clinician' 
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Slot', slotSchema);
+module.exports = mongoose.model('Slot', slotSchema);
