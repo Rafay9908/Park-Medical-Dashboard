@@ -10,6 +10,7 @@ export const CliniciansProvider = ({ children }) => {
   const [clinics, setClinics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [timeSlots, setTimeSlots] = useState([]);
 
   const fetchClinicians = async () => {
     try {
@@ -53,6 +54,9 @@ export const CliniciansProvider = ({ children }) => {
       console.error("Error updating clinician:", error);
       throw error;
     }
+
+    console.log("aagaya", updatedData);
+
   };
 
   const deleteClinician = async (id) => {
@@ -65,32 +69,46 @@ export const CliniciansProvider = ({ children }) => {
     }
   };
 
+  const fetchTimeSlots = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/slots`);
+    setTimeSlots(response.data);
+  } catch (err) {
+    setError(err.message);
+    console.error("Error fetching time slots:", err);
+  }
+};
+
+console.log(timeSlots)
+
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        await Promise.all([fetchClinicians(), fetchClinics()]);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadData();
-  }, []);
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([fetchClinicians(), fetchClinics(), fetchTimeSlots()]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadData();
+}, []);
+
 
   return (
     <CliniciansContext.Provider
       value={{
-        clinicians,
-        clinics,
-        loading,
-        error,
-        addClinician,
-        updateClinician,
-        deleteClinician,
-        fetchClinicians
+          clinicians,
+          clinics,
+          timeSlots,
+          loading,
+          error,
+          addClinician,
+          updateClinician,
+          deleteClinician,
+          fetchClinicians,
       }}
     >
       {children}

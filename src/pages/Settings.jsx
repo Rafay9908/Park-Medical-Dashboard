@@ -12,6 +12,8 @@ function Settings() {
     endDate: "",
   });
 
+  
+
   const [editSlotId, setEditSlotId] = useState(null);
   const [editFormData, setEditFormData] = useState({
     slotName: "",

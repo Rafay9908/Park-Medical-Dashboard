@@ -9,7 +9,8 @@ const Clinicians = () => {
     loading,
     error,
     addClinician,
-    deleteClinician
+    deleteClinician,
+    timeSlots
   } = useClinicians();
 
   const [formData, setFormData] = useState({
@@ -56,6 +57,7 @@ const Clinicians = () => {
     }
   };
 
+  console.log(formData);
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -65,13 +67,21 @@ const Clinicians = () => {
   };
 
   const toggleDay = (day) => {
-    const newSelectedDays = selectedDays.includes(day)
-      ? selectedDays.filter((d) => d !== day)
-      : [...selectedDays, day];
-    
-    setSelectedDays(newSelectedDays);
-    setFormData((prev) => ({ ...prev, workingDay: newSelectedDays }));
-  };
+  setSelectedDays((prevSelectedDays) => {
+    const isDaySelected = prevSelectedDays.includes(day);
+    const newSelectedDays = isDaySelected
+      ? prevSelectedDays.filter((d) => d !== day)
+      : [...prevSelectedDays, day];
+
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      workingDay: newSelectedDays,
+    }));
+
+    return newSelectedDays;
+  });
+};
+
 
   const resetForm = () => {
     setFormData({
@@ -137,11 +147,12 @@ const Clinicians = () => {
       // Prepare the data to send
       const dataToSend = {
         ...formData,
-        minHoursPerWeek: Number(formData.minHoursPerWeek),
-        maxHoursPerWeek: Number(formData.maxHoursPerWeek),
-        maxTravelTime: Number(formData.maxTravelTime),
-        shiftsPerDay: Number(formData.shiftsPerDay),
-        workingDay: selectedDays,
+  minHoursPerWeek: Number(formData.minHoursPerWeek),
+  maxHoursPerWeek: Number(formData.maxHoursPerWeek),
+  maxTravelTime: Number(formData.maxTravelTime),
+  shiftsPerDay: Number(formData.shiftsPerDay),
+  workingDays: selectedDays,
+  preferredClinics: [formData.preferredClinic],
       };
       
       if (isEditing && currentId) {
@@ -235,7 +246,6 @@ const Clinicians = () => {
             className="w-full border p-3 rounded-lg"
             required
           >
-            <option value="">Select a clinic</option>
             {clinics.map((clinic) => (
               <option key={clinic._id} value={clinic._id}>
                 {clinic.clinicName}
@@ -250,10 +260,12 @@ const Clinicians = () => {
             onChange={handleChange}
             className="w-full border p-3 rounded-lg"
           >
-            <option value="Morning Shift">Morning Shift</option>
-            <option value="Afternoon Shift">Afternoon Shift</option>
-            <option value="Evening Shift">Evening Shift</option>
-            <option value="Night Shift">Night Shift</option>
+           
+            {timeSlots.map((slot) => (
+              <option className="text-black" key={slot._id} value={slot._id}>
+                {slot.slotName}
+              </option>
+            ))}
           </select>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -500,7 +512,7 @@ const Clinicians = () => {
                       {clinics.find(c => c._id === clinician.preferredClinic)?.clinicName || clinician.preferredClinic}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {clinician.workingDay?.join(", ")}
+                      {clinician.workingDays?.join(", ")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
