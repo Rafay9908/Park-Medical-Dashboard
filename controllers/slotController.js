@@ -91,9 +91,9 @@ exports.createSlot = async (req, res) => {
     const end = new Date(endDate);
 
     const breakStart = new Date(start);
-    breakStart.setHours(12, 30, 0, 0);
+    breakStart.setUTCHours(12, 30, 0, 0);
     const breakEnd = new Date(start);
-    breakEnd.setHours(13, 30, 0, 0);
+    breakEnd.setUTCHours(13, 30, 0, 0);
 
     if (start < breakEnd && end > breakStart) {
       return res.status(400).json({
