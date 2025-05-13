@@ -4,21 +4,21 @@ const rotaSchema = new mongoose.Schema({
   clinic: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Clinic',
-    required: true,
+    // required: true,
   },
   clinician: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Clinician',
-    required: true,
+    // required: true,
   },
   slot: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Slot',
-    required: true,
+    // required: true,
   },
   day: {
     type: String, // e.g. 'Monday' or specific date like '2025-05-12'
-    required: true,
+    // required: true,
   },
   sessionType: {
     type: String,
