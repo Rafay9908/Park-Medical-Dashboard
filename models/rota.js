@@ -20,11 +20,19 @@ const rotaSchema = new mongoose.Schema({
     type: String, // e.g. 'Monday' or specific date like '2025-05-12'
     // required: true,
   },
+  // sessionType: {
+  //   type: String,
+  //   enum: ['Morning', 'Afternoon', 'Evening'],
+  //   default: 'Morning',
+  // }
   sessionType: {
-    type: String,
-    enum: ['Morning', 'Afternoon', 'Evening'],
-    default: 'Morning',
-  }
+  type: String,
+  enum: [
+    'Morning', 'Afternoon', 'Evening', 'Night',
+    'Full Morning', 'Morning Shift', 'Evening Shift',
+    'Night Shift', 'Morning Slot2', 'Afternon Slot2',
+  ],
+}
 }, {
   timestamps: true,
 });
