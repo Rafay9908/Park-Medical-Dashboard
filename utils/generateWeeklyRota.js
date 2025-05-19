@@ -199,13 +199,28 @@ const generateWeeklyRota = async () => {
           });
           if (duplicate) continue;
 
-          const sessionType = slot.slotName.replace(/ Slot$/i, '').trim(); // ✅ fix here
+          // const sessionType = slot.slotName.replace(/ Slot$/i, '').trim(); // ✅ fix here
 
-          // double-check it's valid
-          if (!['Morning', 'Afternoon', 'Evening'].includes(sessionType)) {
-            console.log(`Invalid sessionType: ${sessionType} for slotName: ${slot.slotName}`);
-            continue;
-          }
+          // // double-check it's valid
+          // if (!['Morning', 'Afternoon', 'Evening'].includes(sessionType)) {
+          //   console.log(`Invalid sessionType: ${sessionType} for slotName: ${slot.slotName}`);
+          //   continue;
+          // }
+          const mapSessionType = (slotName) => {
+  const name = slotName.toLowerCase();
+  if (name.includes('morning')) return 'Morning';
+  if (name.includes('afternoon') || name.includes('afternon')) return 'Afternoon';
+  if (name.includes('evening')) return 'Evening';
+if (name.includes('night')) return 'Night';
+  return null;
+};
+
+const sessionType = mapSessionType(slot.slotName);
+
+if (!sessionType) {
+  console.log(`Invalid sessionType: ${sessionType} for slotName: ${slot.slotName}`);
+  continue;
+}
 
           const rota = new Rota({
             clinic: clinic._id,
