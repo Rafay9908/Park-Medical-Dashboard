@@ -79,8 +79,6 @@ export const CliniciansProvider = ({ children }) => {
   }
 };
 
-console.log(timeSlots)
-
   useEffect(() => {
   const loadData = async () => {
     setLoading(true);

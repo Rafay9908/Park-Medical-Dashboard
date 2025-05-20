@@ -14,6 +14,8 @@ import {
   FaCalendarAlt,
   FaTrash,
   FaEdit,
+  FaChevronDown,
+  FaTimes,
 } from "react-icons/fa";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 
@@ -30,6 +32,7 @@ const daysOfWeek = [
 export default function Clinics() {
   const {
     clinics,
+    listOfSlots,
     isLoading,
     error,
     formData,
@@ -39,27 +42,50 @@ export default function Clinics() {
     saveClinic,
     deleteClinic,
     loadClinicForEdit,
-    resetForm
+    resetForm,
   } = useClinics();
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedSlots, setSelectedSlots] = useState([]);
+
+  console.log(selectedSlots);
+
+  const handleSlotToggle = (slot, e) => {
+    e.stopPropagation();
+
+    setSelectedSlots((prev) => {
+      const exists = prev.some((s) => s._id === slot._id);
+      return exists
+        ? prev.filter((s) => s._id !== slot._id)
+        : [...prev, { _id: slot._id, slotName: slot.slotName }];
+    });
+  };
+
+  const handleRemoveSlot = (_id, e) => {
+    e.stopPropagation();
+    setSelectedSlots((prev) => prev.filter((s) => s._id !== _id));
+  };
+
+  const isSlotSelected = (_id) => selectedSlots.some((s) => s._id === _id);
+
   const handleTimeChange = (index, field, value) => {
     const updatedHours = [...formData.operatingHours];
     updatedHours[index][field] = value;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      operatingHours: updatedHours
+      operatingHours: updatedHours,
     }));
   };
 
   const toggleOpen = (index) => {
     const updatedHours = [...formData.operatingHours];
     updatedHours[index].open = !updatedHours[index].open;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      operatingHours: updatedHours
+      operatingHours: updatedHours,
     }));
   };
 
@@ -72,68 +98,60 @@ export default function Clinics() {
   };
 
   const handleIncrement = (field) => {
-    setFormData((prev) => ({ ...prev, [field]: prev[field] + 1 }));
+    setFormData((prev) => ({ ...prev, [field]: Number(prev[field]) + 1 }));
   };
 
   const handleDecrement = (field) => {
-    setFormData((prev) => ({ ...prev, [field]: Math.max(0, prev[field] - 1) }));
+    setFormData((prev) => ({
+      ...prev,
+      [field]: Math.max(0, Number(prev[field]) - 1),
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Basic validation
     if (!formData.clinicName.trim()) {
-      alert('Clinic name is required');
+      alert("Clinic name is required");
       return;
     }
     if (!formData.address.trim()) {
-      alert('Address is required');
+      alert("Address is required");
       return;
     }
 
     // Validate operating hours
-    const hasInvalidHours = formData.operatingHours.some(hour => {
+    const hasInvalidHours = formData.operatingHours.some((hour) => {
       return hour.open && hour.openingTime >= hour.closingTime;
     });
 
     if (hasInvalidHours) {
-      alert('Closing time must be after opening time for all open days');
+      alert("Closing time must be after opening time for all open days");
       return;
     }
 
     setIsSubmitting(true);
-    
-    try {
-      // Prepare the data to send
-      const dataToSend = {
-        ...formData,
-        operatingHours: formData.operatingHours.map(hour => ({
-          day: hour.day,
-          open: hour.open,
-          openingTime: hour.open ? hour.openingTime : undefined,
-          closingTime: hour.open ? hour.closingTime : undefined
-        }))
-      };
 
-      await saveClinic(dataToSend, editingId);
-      alert(`Clinic ${editingId ? 'updated' : 'added'} successfully!`);
+    try {
+      await saveClinic(formData, editingId);
+      alert(`Clinic ${editingId ? "updated" : "added"} successfully!`);
       resetForm();
     } catch (error) {
-      console.error('Error:', error);
-      alert(`Error: ${error}`);
+      console.error("Error:", error);
+      // Error is already handled in saveClinic
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this clinic?')) {
+    if (window.confirm("Are you sure you want to delete this clinic?")) {
       try {
         await deleteClinic(id);
-        alert('Clinic deleted successfully');
+        alert("Clinic deleted successfully");
       } catch (error) {
-        alert('Failed to delete clinic');
+        console.error("Delete error:", error);
       }
     }
   };
@@ -145,7 +163,10 @@ export default function Clinics() {
         const hr = hour.toString().padStart(2, "0");
         const min = minute.toString().padStart(2, "0");
         options.push(
-          <option key={`${hr}:${min}`} value={`${hr}:${min}`}>{`${hr}:${min}`}</option>
+          <option
+            key={`${hr}:${min}`}
+            value={`${hr}:${min}`}
+          >{`${hr}:${min}`}</option>
         );
       }
     }
@@ -153,23 +174,23 @@ export default function Clinics() {
   };
 
   const setAllHours = (isOpen) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      operatingHours: prev.operatingHours.map(hour => ({
+      operatingHours: prev.operatingHours.map((hour) => ({
         ...hour,
-        open: isOpen
-      }))
+        open: isOpen,
+      })),
     }));
   };
 
   const setStandardHours = (start, end) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      operatingHours: prev.operatingHours.map(hour => ({
+      operatingHours: prev.operatingHours.map((hour) => ({
         ...hour,
         openingTime: start,
-        closingTime: end
-      }))
+        closingTime: end,
+      })),
     }));
   };
 
@@ -190,9 +211,9 @@ export default function Clinics() {
         className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-8 mb-8"
       >
         <h2 className="text-2xl font-semibold">
-          {editingId ? 'Edit Clinic' : 'Add New Clinic'}
+          {editingId ? "Edit Clinic" : "Add New Clinic"}
         </h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Clinic Name */}
           <div className="flex flex-col space-y-1">
@@ -217,22 +238,22 @@ export default function Clinics() {
             <div className="flex items-center space-x-2">
               <button
                 type="button"
-                onClick={() => handleDecrement("minimumSessionPerWeek")}
+                onClick={() => handleDecrement("minSessionPerWeek")}
                 className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
-                disabled={formData.minimumSessionPerWeek <= 0}
+                disabled={formData.minSessionPerWeek <= 0}
               >
                 -
               </button>
               <input
                 type="number"
-                name="minimumSessionPerWeek"
-                value={formData.minimumSessionPerWeek}
+                name="minSessionPerWeek"
+                value={formData.minSessionPerWeek}
                 readOnly
                 className="w-16 text-center border rounded-lg py-2"
               />
               <button
                 type="button"
-                onClick={() => handleIncrement("minimumSessionPerWeek")}
+                onClick={() => handleIncrement("minSessionPerWeek")}
                 className="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300"
               >
                 +
@@ -400,11 +421,91 @@ export default function Clinics() {
                 +
               </button>
             </div>
+
+         
           </div>
 
           <h2 className="text-2xl font-semibold flex items-center gap-2 col-span-2">
             <span className="text-red-500">⏰</span> Operating Hours
           </h2>
+
+             <div className="relative w-full col-span-2">
+              {/* Selected slots display */}
+              <div
+                className="flex flex-wrap items-center gap-2 border p-3 rounded-lg min-h-[52px] cursor-pointer bg-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDropdownOpen((prev) => !prev);
+                }}
+              >
+                {selectedSlots.length === 0 ? (
+                  <span className="text-gray-400">Select time slots</span>
+                ) : (
+                  selectedSlots.map((slot) => {
+                    const fullSlot = listOfSlots.find(
+                      (s) => s._id === slot._id
+                    );
+                    return (
+                      <div
+                        key={slot._id}
+                        className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center gap-1"
+                      >
+                        <span>{slot.slotName}</span>
+                        {fullSlot?.time && (
+                          <span className="text-gray-600">
+                            ({fullSlot.time})
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveSlot(slot._id, e)}
+                          className="ml-1 text-blue-500 hover:text-blue-700 cursor-pointer"
+                        >
+                          <FaTimes className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+                <FaChevronDown
+                  className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${
+                    isDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </div>
+
+              {/* Dropdown options */}
+              {isDropdownOpen && (
+                <div
+                  className="absolute z-10 w-full mt-1 border rounded-lg shadow-lg bg-white max-h-60 overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {listOfSlots.map((slot) => (
+                    <div
+                      key={slot._id}
+                      className={`p-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center ${
+                        isSlotSelected(slot._id) ? "bg-blue-50" : ""
+                      }`}
+                      onClick={(e) => handleSlotToggle(slot, e)}
+                    >
+                      <div>
+                        <div className="font-medium">{slot.slotName}</div>
+                        {slot.time && (
+                          <div className="text-sm text-gray-500">
+                            {slot.time}
+                          </div>
+                        )}
+                      </div>
+                      {isSlotSelected(slot._id) && (
+                        <div className="text-blue-500">✓</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          
 
           {/* Bulk operations */}
           <div className="col-span-2 flex gap-4 mb-4">
@@ -443,9 +544,7 @@ export default function Clinics() {
               key={hour.day}
               className="flex justify-around items-center gap-4 mb-6 col-span-2"
             >
-              <div className="w-24 font-semibold text-gray-800">
-                {hour.day}
-              </div>
+              <div className="w-24 font-semibold text-gray-800">{hour.day}</div>
 
               <select
                 className="border border-gray-300 rounded-md p-2"
@@ -503,10 +602,10 @@ export default function Clinics() {
             disabled={isSubmitting || isLoading}
           >
             {isSubmitting || isLoading
-              ? 'Saving...' 
-              : editingId 
-                ? 'Update Clinic' 
-                : 'Add Clinic'}
+              ? "Saving..."
+              : editingId
+              ? "Update Clinic"
+              : "Add Clinic"}
           </button>
         </div>
       </form>
@@ -517,15 +616,15 @@ export default function Clinics() {
             <h4 className="text-[#262730]">Existing Clinics</h4>
             <h3 className="text-[#262730] text-[28px]">🟢 Active Clinics</h3>
           </div>
-          <button 
+          <button
             onClick={fetchClinics}
             disabled={isLoading}
             className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50"
           >
-            {isLoading ? 'Refreshing...' : 'Refresh Clinics'}
+            {isLoading ? "Refreshing..." : "Refresh Clinics"}
           </button>
         </div>
-        
+
         {isLoading && !clinics.length ? (
           <div className="flex justify-center items-center h-40">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -556,7 +655,7 @@ export default function Clinics() {
                       onClick={(e) => {
                         e.stopPropagation();
                         loadClinicForEdit(clinic);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
                       className="text-blue-600 hover:text-blue-800"
                       disabled={isLoading}
@@ -586,21 +685,30 @@ export default function Clinics() {
                 {expandedCard === clinic._id && (
                   <div className="mt-4 space-y-2 text-sm text-gray-700">
                     <p>
-                      <strong>Owner:</strong> {clinic.ownerName || "Not specified"}
+                      <strong>Owner:</strong>{" "}
+                      {clinic.ownerName || "Not specified"}
                     </p>
                     <p>
-                      <strong>Transport:</strong> {clinic.localStation || "Not specified"}, {clinic.nearestBus || "Not specified"}, Zone {clinic.tflZone || "Not specified"}
+                      <strong>Transport:</strong>{" "}
+                      {clinic.localStation || "Not specified"},{" "}
+                      {clinic.nearestBus || "Not specified"}, Zone{" "}
+                      {clinic.tflZone || "Not specified"}
                     </p>
                     <p>
                       <strong>Accessibility:</strong>{" "}
-                      {clinic.wheelchairAccessible ? "Wheelchair accessible" : "Not wheelchair accessible"},{" "}
-                      {clinic.walkingMinutesToStations || "Not specified"} min walk
+                      {clinic.wheelchairAccessible
+                        ? "Wheelchair accessible"
+                        : "Not wheelchair accessible"}
+                      , {clinic.walkingMinutesToStations || "Not specified"} min
+                      walk
                     </p>
                     <p>
-                      <strong>WiFi:</strong> {clinic.wifiDetails || "Not specified"}
+                      <strong>WiFi:</strong>{" "}
+                      {clinic.wifiDetails || "Not specified"}
                     </p>
                     <p>
-                      <strong>Minimum Sessions:</strong> {clinic.minimumSessionPerWeek || "Not specified"}
+                      <strong>Minimum Sessions:</strong>{" "}
+                      {clinic.minSessionPerWeek || "Not specified"}
                     </p>
                     <p>
                       <strong>Check-In Instructions:</strong>{" "}
@@ -613,13 +721,15 @@ export default function Clinics() {
                       </h4>
                       <div className="space-y-4 mb-4">
                         {daysOfWeek.map((day) => {
-                          const hour = clinic.operatingHours?.find(h => h.day === day) || {
+                          const hour = clinic.operatingHours?.find(
+                            (h) => h.day === day
+                          ) || {
                             day,
                             open: false,
                             openingTime: null,
-                            closingTime: null
+                            closingTime: null,
                           };
-                          
+
                           return (
                             <div
                               key={day}
@@ -630,15 +740,25 @@ export default function Clinics() {
                               </div>
 
                               <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
-                                {hour.open && hour.openingTime ? 
-                                  new Date(`2000-01-01T${hour.openingTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                                  "--"}
+                                {hour.open && hour.openingTime
+                                  ? new Date(
+                                      `2000-01-01T${hour.openingTime}`
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "--"}
                               </div>
 
                               <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
-                                {hour.open && hour.closingTime ? 
-                                  new Date(`2000-01-01T${hour.closingTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                                  "--"}
+                                {hour.open && hour.closingTime
+                                  ? new Date(
+                                      `2000-01-01T${hour.closingTime}`
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "--"}
                               </div>
 
                               <div className="col-span-3 flex justify-center items-center gap-2">
@@ -665,7 +785,13 @@ export default function Clinics() {
                                     </svg>
                                   )}
                                 </div>
-                                <span className={`text-sm ${hour.open ? "text-green-600" : "text-red-600"}`}>
+                                <span
+                                  className={`text-sm ${
+                                    hour.open
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
                                   {hour.open ? "Open" : "Closed"}
                                 </span>
                               </div>

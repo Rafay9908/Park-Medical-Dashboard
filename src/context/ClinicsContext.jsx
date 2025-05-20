@@ -19,6 +19,7 @@ export function ClinicsProvider({ children }) {
   const [clinics, setClinics] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [listOfSlots, setListOfSlots] = useState([]);
 
   const initialFormData = {
     clinicName: "",
@@ -29,7 +30,7 @@ export function ClinicsProvider({ children }) {
     wifiDetails: "",
     checkInInstructions: "",
     tflZone: "1",
-    minimumSessionPerWeek: 1,
+    minSessionPerWeek: 1,
     walkingMinutesToStations: 5,
     wheelchairAccessible: false,
     operatingHours: daysOfWeek.map(day => ({
@@ -61,17 +62,28 @@ export function ClinicsProvider({ children }) {
     setIsLoading(true);
     setError(null);
     try {
+      // Clean up operating hours data before sending
+      const cleanedData = {
+        ...clinicData,
+        operatingHours: clinicData.operatingHours.map(hour => ({
+          day: hour.day,
+          open: hour.open,
+          openingTime: hour.open ? hour.openingTime : undefined,
+          closingTime: hour.open ? hour.closingTime : undefined
+        }))
+      };
+
       let response;
       if (id) {
-        response = await axios.put(`${apiUrl}/clinics/${id}`, clinicData);
+        response = await axios.put(`${apiUrl}/clinics/${id}`, cleanedData);
       } else {
-        response = await axios.post(`${apiUrl}/clinics`, clinicData);
+        response = await axios.post(`${apiUrl}/clinics`, cleanedData);
       }
       await fetchClinics();
       return response.data;
     } catch (error) {
-      console.error('Error saving clinic:', error);
-      setError(error.response?.data?.message || 'Failed to save clinic');
+      console.error('Error saving clinic:', error.response?.data || error);
+      setError(error.response?.data?.message || 'Failed to save clinic. Please check your data.');
       throw error;
     } finally {
       setIsLoading(false);
@@ -104,7 +116,7 @@ export function ClinicsProvider({ children }) {
       wifiDetails: clinic.wifiDetails || "",
       checkInInstructions: clinic.checkInInstructions || "",
       tflZone: clinic.tflZone || "1",
-      minimumSessionPerWeek: clinic.minimumSessionPerWeek || 1,
+      minSessionPerWeek: clinic.minSessionPerWeek || 1,
       walkingMinutesToStations: clinic.walkingMinutesToStations || 5,
       wheelchairAccessible: clinic.wheelchairAccessible || false,
       operatingHours: daysOfWeek.map(day => {
@@ -119,6 +131,21 @@ export function ClinicsProvider({ children }) {
     });
   };
 
+  const fetchListOfSlots = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`${apiUrl}/slots`);
+      setListOfSlots(response.data);
+    } catch (error) {
+      console.error('Error fetching list of clinics:', error);
+      setError(error.response?.data?.message || 'Failed to fetching list of clinics');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   const resetForm = () => {
     setFormData(initialFormData);
     setEditingId(null);
@@ -126,12 +153,14 @@ export function ClinicsProvider({ children }) {
 
   useEffect(() => {
     fetchClinics();
+    fetchListOfSlots();
   }, []);
 
   return (
     <ClinicsContext.Provider
       value={{
         clinics,
+        listOfSlots,
         isLoading,
         error,
         formData,

@@ -47,8 +47,6 @@ export const AuthProvider = ({ children }) => {
       throw err;
     }
   };
-console.log("Token", token)
-
 
   const logout = () => {
     setToken(null);
