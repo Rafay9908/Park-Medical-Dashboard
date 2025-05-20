@@ -19,6 +19,10 @@ const mongoose = require('mongoose');
 //   // ... keep other existing fields
 // }, { timestamps: true });
 
+
+
+
+
 const clinicianSchema = new mongoose.Schema({
   clinicianName: { type: String, required: true },
   preferredClinics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Clinic' }],
@@ -31,6 +35,10 @@ const clinicianSchema = new mongoose.Schema({
     enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     required: true 
   },
+  availableSlots: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'slot' 
+  }],
   homePostcode: String,
   nearestStation: String,
   maxTravelTime: Number, // in minutes
@@ -39,11 +47,16 @@ const clinicianSchema = new mongoose.Schema({
   contactEmail: String,
   contactPhone: String,
   qualifications: [String],
+  availableSlots: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Slot' 
+  }],
   unavailableTimes: [{
     start: Date,
     end: Date,
     reason: String
   }],
+  
   travelMatrix: Map, // Cache of travel times to different clinics
   status: { type: String, enum: ['active', 'on_leave', 'inactive'], default: 'active' }
 }, { timestamps: true });
