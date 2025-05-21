@@ -47,14 +47,14 @@ exports.updateRota = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
+//
 // Delete rota
-exports.deleteRota = async (req, res) => {
-  try {
-    const rota = await Rota.findByIdAndDelete(req.params.id);
-    if (!rota) return res.status(404).json({ message: 'Rota not found' });
-    res.status(200).json({ message: 'Rota deleted' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+// exports.deleteRota = async (req, res) => {
+//   try {
+//     const rota = await Rota.findByIdAndDelete(req.params.id);
+//     if (!rota) return res.status(404).json({ message: 'Rota not found' });
+//     res.status(200).json({ message: 'Rota deleted' });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
