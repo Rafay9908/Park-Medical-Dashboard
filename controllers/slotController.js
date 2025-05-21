@@ -24,20 +24,20 @@ exports.createSlot = async (req, res) => {
     const bufferBefore = new Date(start.getTime() - 60 * 60 * 1000);
     const bufferAfter = new Date(end.getTime() + 60 * 60 * 1000);
 
-    const overlappingSlot = await Slot.findOne({
-      $or: [
-        {
-          startDate: { $lt: bufferAfter },
-          endDate: { $gt: bufferBefore }
-        }
-      ]
-    });
+    // const overlappingSlot = await Slot.findOne({
+    //   $or: [
+    //     {
+    //       startDate: { $lt: bufferAfter },
+    //       endDate: { $gt: bufferBefore }
+    //     }
+    //   ]
+    // });
 
-    if (overlappingSlot) {
-      return res.status(400).json({
-        message: "Slot conflicts with an existing slot or violates 1-hour gap rule."
-      });
-    }
+    // if (overlappingSlot) {
+    //   return res.status(400).json({
+    //     message: "Slot conflicts with an existing slot or violates 1-hour gap rule."
+    //   });
+    // }
 
     const slot = await Slot.create({ slotName, startDate, endDate });
     res.status(201).json(slot);
