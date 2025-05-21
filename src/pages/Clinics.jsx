@@ -43,33 +43,30 @@ export default function Clinics() {
     deleteClinic,
     loadClinicForEdit,
     resetForm,
+    selectedSlots,
+    setSelectedSlots 
   } = useClinics();
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedSlots, setSelectedSlots] = useState([]);
 
-  console.log(selectedSlots);
+ const handleSlotToggle = (slot, e) => {
+  e.stopPropagation();
+  setSelectedSlots((prev) => {
+    const exists = prev.some(s => s._id === slot._id);
+    return exists
+      ? prev.filter(s => s._id !== slot._id)
+      : [...prev, { _id: slot._id, slotName: slot.slotName }];
+  });
+};
 
-  const handleSlotToggle = (slot, e) => {
-    e.stopPropagation();
+const handleRemoveSlot = (_id, e) => {
+  e.stopPropagation();
+  setSelectedSlots(prev => prev.filter(s => s._id !== _id));
+};
 
-    setSelectedSlots((prev) => {
-      const exists = prev.some((s) => s._id === slot._id);
-      return exists
-        ? prev.filter((s) => s._id !== slot._id)
-        : [...prev, { _id: slot._id, slotName: slot.slotName }];
-    });
-  };
-
-  const handleRemoveSlot = (_id, e) => {
-    e.stopPropagation();
-    setSelectedSlots((prev) => prev.filter((s) => s._id !== _id));
-  };
-
-  const isSlotSelected = (_id) => selectedSlots.some((s) => s._id === _id);
+const isSlotSelected = (_id) => selectedSlots.some(s => s._id === _id);
 
   const handleTimeChange = (index, field, value) => {
     const updatedHours = [...formData.operatingHours];
@@ -108,42 +105,102 @@ export default function Clinics() {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    // Basic validation
-    if (!formData.clinicName.trim()) {
-      alert("Clinic name is required");
-      return;
-    }
-    if (!formData.address.trim()) {
-      alert("Address is required");
-      return;
-    }
+  // Validate required fields
+  if (!formData.clinicName.trim()) {
+    alert("Clinic name is required");
+    return;
+  }
+  if (!formData.address.trim()) {
+    alert("Address is required");
+    return;
+  }
 
-    // Validate operating hours
-    const hasInvalidHours = formData.operatingHours.some((hour) => {
-      return hour.open && hour.openingTime >= hour.closingTime;
-    });
-
-    if (hasInvalidHours) {
-      alert("Closing time must be after opening time for all open days");
-      return;
+  // Validate operating hours
+  const hasInvalidHours = formData.operatingHours.some((hour) => {
+    if (hour.open) {
+      if (!hour.openingTime || !hour.closingTime) {
+        return true;
+      }
+      return hour.openingTime >= hour.closingTime;
     }
+    return false;
+  });
+
+  if (hasInvalidHours) {
+    alert("For open days, closing time must be after opening time");
+    return;
+  }
+
+  // Validate at least one day is open
+  const hasAtLeastOneOpenDay = formData.operatingHours.some(hour => hour.open);
+  if (!hasAtLeastOneOpenDay) {
+    alert("At least one day must be open");
+    return;
+  }
+
+  // Validate minimum sessions
+  if (formData.minSessionPerWeek <= 0) {
+    alert("Minimum sessions per week must be at least 1");
+    return;
+  }
+
+  // Validate TFL Zone
+  if (formData.tflZone < 1 || formData.tflZone > 9) {
+    alert("TFL Zone must be between 1 and 9");
+    return;
+  }
+
+  // Validate walking minutes
+  if (formData.walkingMinutesToStations < 0) {
+    alert("Walking minutes cannot be negative");
+    return;
+  }
 
     setIsSubmitting(true);
 
-    try {
-      await saveClinic(formData, editingId);
-      alert(`Clinic ${editingId ? "updated" : "added"} successfully!`);
-      resetForm();
-    } catch (error) {
-      console.error("Error:", error);
-      // Error is already handled in saveClinic
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  try {
+    // Prepare the data to submit
+    const dataToSubmit = {
+      ...formData,
+      // Convert selected slots to just their IDs for the backend
+      slotIds: selectedSlots.map(slot => slot._id),
+      // Ensure wheelchairAccessible is boolean
+      wheelchairAccessible: !!formData.wheelchairAccessible,
+      // Convert numbers from strings if needed
+      minSessionPerWeek: Number(formData.minSessionPerWeek),
+      walkingMinutesToStations: Number(formData.walkingMinutesToStations),
+      tflZone: String(formData.tflZone),
+      // Filter out closed days from operating hours
+      operatingHours: formData.operatingHours
+        .filter(hour => hour.open)
+        .map(hour => ({
+          day: hour.day,
+          isOpen: true,
+          openingTime: hour.openingTime,
+          closingTime: hour.closingTime
+        }))
+    };
+
+    // Call the save function
+    await saveClinic(dataToSubmit, editingId);
+    
+    // Success feedback
+    alert(`Clinic ${editingId ? "updated" : "added"} successfully!`);
+    
+    // Reset form and selected slots
+    resetForm();
+    setSelectedSlots([]);
+    
+  } catch (error) {
+    console.error("Error:", error);
+    alert(error.response?.data?.message || "An error occurred. Please try again.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this clinic?")) {
@@ -163,22 +220,19 @@ export default function Clinics() {
         const hr = hour.toString().padStart(2, "0");
         const min = minute.toString().padStart(2, "0");
         options.push(
-          <option
-            key={`${hr}:${min}`}
-            value={`${hr}:${min}`}
-          >{`${hr}:${min}`}</option>
+          <option key={`${hr}:${min}`} value={`${hr}:${min}`}>{`${hr}:${min}`}</option>
         );
       }
     }
     return options;
   };
 
-  const setAllHours = (isOpen) => {
+  const setAllHours = (open) => {
     setFormData((prev) => ({
       ...prev,
       operatingHours: prev.operatingHours.map((hour) => ({
         ...hour,
-        open: isOpen,
+        open: open,
       })),
     }));
   };
@@ -194,6 +248,18 @@ export default function Clinics() {
     }));
   };
 
+  const formatTimeDisplay = (timeString) => {
+    if (!timeString) return "--";
+    try {
+      return new Date(`2000-01-01T${timeString}`).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "--";
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
       <div className="w-full max-w-4xl mb-8">
@@ -206,10 +272,7 @@ export default function Clinics() {
         </div>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-8 mb-8"
-      >
+      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-8 mb-8">
         <h2 className="text-2xl font-semibold">
           {editingId ? "Edit Clinic" : "Add New Clinic"}
         </h2>
@@ -421,93 +484,108 @@ export default function Clinics() {
                 +
               </button>
             </div>
-
-         
           </div>
 
           <h2 className="text-2xl font-semibold flex items-center gap-2 col-span-2">
             <span className="text-red-500">⏰</span> Operating Hours
           </h2>
 
-             <div className="relative w-full col-span-2">
-              {/* Selected slots display */}
-              <div
-                className="flex flex-wrap items-center gap-2 border p-3 rounded-lg min-h-[52px] cursor-pointer bg-white"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsDropdownOpen((prev) => !prev);
-                }}
-              >
-                {selectedSlots.length === 0 ? (
-                  <span className="text-gray-400">Select time slots</span>
-                ) : (
-                  selectedSlots.map((slot) => {
-                    const fullSlot = listOfSlots.find(
-                      (s) => s._id === slot._id
-                    );
-                    return (
-                      <div
-                        key={slot._id}
-                        className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center gap-1"
-                      >
-                        <span>{slot.slotName}</span>
-                        {fullSlot?.time && (
-                          <span className="text-gray-600">
-                            ({fullSlot.time})
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => handleRemoveSlot(slot._id, e)}
-                          className="ml-1 text-blue-500 hover:text-blue-700 cursor-pointer"
-                        >
-                          <FaTimes className="w-3 h-3" />
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-                <FaChevronDown
-                  className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${
-                    isDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
+       <div className="relative w-full col-span-2">
+  {/* Selected slots display area */}
+  <div
+    className="flex flex-wrap items-center gap-2 border p-3 rounded-lg min-h-[52px] cursor-pointer bg-white"
+    onClick={(e) => {
+      e.stopPropagation();
+      setIsDropdownOpen((prev) => !prev);
+    }}
+  >
+    {selectedSlots.length === 0 ? (
+      <span className="text-gray-400">Select time slots</span>
+    ) : (
+      selectedSlots.map((slot) => {
+        const fullSlot = listOfSlots.find((s) => s._id === slot._id);
+        const startTime = fullSlot
+          ? new Date(fullSlot.startDate).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "";
+        const endTime = fullSlot
+          ? new Date(fullSlot.endDate).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "";
+
+        return (
+          <div
+            key={slot._id}
+            className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center gap-1"
+          >
+            <span>{slot.slotName}</span>
+            {startTime && endTime && (
+              <span className="text-gray-600">
+                ({startTime} - {endTime})
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={(e) => handleRemoveSlot(slot._id, e)}
+              className="ml-1 text-blue-500 hover:text-blue-700 cursor-pointer"
+            >
+              <FaTimes className="w-3 h-3" />
+            </button>
+          </div>
+        );
+      })
+    )}
+    <FaChevronDown
+      className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${
+        isDropdownOpen ? "rotate-180" : ""
+      }`}
+    />
+  </div>
+
+  {/* Dropdown menu for slot selection */}
+  {isDropdownOpen && (
+    <div
+      className="absolute z-10 w-full mt-1 border rounded-lg shadow-lg bg-white max-h-60 overflow-y-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {listOfSlots.map((slot) => {
+        const startTime = new Date(slot.startDate).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const endTime = new Date(slot.endDate).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        return (
+          <div
+            key={slot._id}
+            className={`p-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center ${
+              isSlotSelected(slot._id) ? "bg-blue-50" : ""
+            }`}
+            onClick={(e) => handleSlotToggle(slot, e)}
+          >
+            <div>
+              <div className="font-medium">{slot.slotName}</div>
+              <div className="text-sm text-gray-500">
+                {startTime} - {endTime}
               </div>
-
-              {/* Dropdown options */}
-              {isDropdownOpen && (
-                <div
-                  className="absolute z-10 w-full mt-1 border rounded-lg shadow-lg bg-white max-h-60 overflow-y-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {listOfSlots.map((slot) => (
-                    <div
-                      key={slot._id}
-                      className={`p-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center ${
-                        isSlotSelected(slot._id) ? "bg-blue-50" : ""
-                      }`}
-                      onClick={(e) => handleSlotToggle(slot, e)}
-                    >
-                      <div>
-                        <div className="font-medium">{slot.slotName}</div>
-                        {slot.time && (
-                          <div className="text-sm text-gray-500">
-                            {slot.time}
-                          </div>
-                        )}
-                      </div>
-                      {isSlotSelected(slot._id) && (
-                        <div className="text-blue-500">✓</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
+            {isSlotSelected(slot._id) && (
+              <div className="text-blue-500">✓</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  )}
+</div>
 
-          
-
-          {/* Bulk operations */}
           <div className="col-span-2 flex gap-4 mb-4">
             <button
               type="button"
@@ -585,7 +663,6 @@ export default function Clinics() {
           ))}
         </div>
 
-        {/* Submit and Cancel Buttons */}
         <div className="flex justify-center gap-4">
           {editingId && (
             <button
@@ -721,15 +798,9 @@ export default function Clinics() {
                       </h4>
                       <div className="space-y-4 mb-4">
                         {daysOfWeek.map((day) => {
-                          const hour = clinic.operatingHours?.find(
-                            (h) => h.day === day
-                          ) || {
-                            day,
-                            open: false,
-                            openingTime: null,
-                            closingTime: null,
-                          };
-
+                          const hour = clinic.operatingHours?.find(h => h.day === day);
+                          const isOpen = !!hour;
+                          
                           return (
                             <div
                               key={day}
@@ -740,36 +811,26 @@ export default function Clinics() {
                               </div>
 
                               <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
-                                {hour.open && hour.openingTime
-                                  ? new Date(
-                                      `2000-01-01T${hour.openingTime}`
-                                    ).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
+                                {isOpen && hour.openingTime
+                                  ? formatTimeDisplay(hour.openingTime)
                                   : "--"}
                               </div>
 
                               <div className="col-span-3 p-2 bg-gray-100 rounded text-center">
-                                {hour.open && hour.closingTime
-                                  ? new Date(
-                                      `2000-01-01T${hour.closingTime}`
-                                    ).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
+                                {isOpen && hour.closingTime
+                                  ? formatTimeDisplay(hour.closingTime)
                                   : "--"}
                               </div>
 
                               <div className="col-span-3 flex justify-center items-center gap-2">
                                 <div
                                   className={`h-5 w-5 rounded border-2 flex items-center justify-center ${
-                                    hour.open
+                                    isOpen
                                       ? "bg-blue-600 border-blue-600"
                                       : "bg-gray-200 border-gray-400"
                                   }`}
                                 >
-                                  {hour.open && (
+                                  {isOpen && (
                                     <svg
                                       className="w-3 h-3 text-white"
                                       fill="none"
@@ -787,12 +848,10 @@ export default function Clinics() {
                                 </div>
                                 <span
                                   className={`text-sm ${
-                                    hour.open
-                                      ? "text-green-600"
-                                      : "text-red-600"
+                                    isOpen ? "text-green-600" : "text-red-600"
                                   }`}
                                 >
-                                  {hour.open ? "Open" : "Closed"}
+                                  {isOpen ? "Open" : "Closed"}
                                 </span>
                               </div>
                             </div>
