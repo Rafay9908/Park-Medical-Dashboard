@@ -12,8 +12,6 @@ function Settings() {
     endDate: "",
   });
 
-  
-
   const [editSlotId, setEditSlotId] = useState(null);
   const [editFormData, setEditFormData] = useState({
     slotName: "",
@@ -25,7 +23,7 @@ function Settings() {
   const [slots, setSlots] = useState([]);
   const [openSlotId, setOpenSlotId] = useState(null);
 
-  // Generate time slots only once using useMemo
+  // Generate time slots every 15 minutes
   const timeSlots = useMemo(() => {
     const slots = [];
     for (let h = 0; h < 24; h++) {
@@ -50,25 +48,6 @@ function Settings() {
       ...prev,
       [name]: value,
     }));
-  };
-
-  console.log("Data", formData);
-
-  const checkTimeConflict = (newStart, newEnd, excludeId = null) => {
-    return slots.some((slot) => {
-      if (excludeId && slot._id === excludeId) return false;
-      
-      const existingStart = DateTime.fromISO(slot.startDate);
-      const existingEnd = DateTime.fromISO(slot.endDate);
-      const checkStart = DateTime.fromISO(newStart);
-      const checkEnd = DateTime.fromISO(newEnd);
-
-      return (
-        (checkStart >= existingStart && checkStart < existingEnd) ||
-        (checkEnd > existingStart && checkEnd <= existingEnd) ||
-        (checkStart <= existingStart && checkEnd >= existingEnd)
-      );
-    });
   };
 
   const formatToUTC = (timeString) => {
@@ -96,8 +75,9 @@ function Settings() {
       const newStart = formatToUTC(formData.startDate);
       const newEnd = formatToUTC(formData.endDate);
 
-      if (checkTimeConflict(newStart, newEnd)) {
-        setError("Time slot overlaps with an existing shift.");
+      // Only validate that end time is after start time
+      if (DateTime.fromISO(newEnd) <= DateTime.fromISO(newStart)) {
+        setError("End time must be after start time");
         return;
       }
 
@@ -111,7 +91,8 @@ function Settings() {
       setFormData({ slotName: "", startDate: "", endDate: "" });
     } catch (error) {
       console.error("Failed to add slot:", error);
-      setError("Failed to add slot. Please try again.");
+      const errorMessage = error.response?.data?.message || "Failed to add slot. Please try again.";
+      setError(errorMessage);
     }
   };
 
@@ -138,8 +119,9 @@ function Settings() {
       const updatedStart = formatToUTC(editFormData.startDate);
       const updatedEnd = formatToUTC(editFormData.endDate);
 
-      if (checkTimeConflict(updatedStart, updatedEnd, id)) {
-        setError("Updated time slot overlaps with an existing shift.");
+      // Only validate that end time is after start time
+      if (DateTime.fromISO(updatedEnd) <= DateTime.fromISO(updatedStart)) {
+        setError("End time must be after start time");
         return;
       }
 
@@ -153,7 +135,8 @@ function Settings() {
       setEditSlotId(null);
     } catch (error) {
       console.error("Failed to update slot:", error);
-      setError("Failed to update slot. Please try again.");
+      const errorMessage = error.response?.data?.message || "Failed to update slot. Please try again.";
+      setError(errorMessage);
     }
   };
 
