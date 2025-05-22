@@ -46,14 +46,13 @@ export default function Clinics() {
     resetForm,
     selectedSlots,
     setSelectedSlots,
-    toggleOperatingHour, // Use the context function instead of local one
+    toggleOperatingHour,
   } = useClinics();
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Memoize time options to prevent regeneration on every render
   const timeOptions = useMemo(() => {
     const options = [];
     for (let hour = 0; hour < 24; hour++) {
@@ -110,8 +109,6 @@ export default function Clinics() {
     },
     [setFormData]
   );
-
-  // Remove the local toggleOpen function since we're using the context one
 
   const handleChange = useCallback(
     (e) => {
@@ -282,7 +279,6 @@ export default function Clinics() {
     }
   };
 
-  // Memoize the operating hours rendering
   const renderOperatingHours = useMemo(() => {
     return formData.operatingHours.map((hour, index) => (
       <div
@@ -578,9 +574,15 @@ export default function Clinics() {
                 selectedSlots.map((slot) => {
                   const fullSlot = listOfSlots.find((s) => s._id === slot._id);
                   const startTime = fullSlot
-                    ? formatTime(fullSlot.startDate)
+                    ? DateTime.fromISO(fullSlot.startDate, { zone: "utc" })
+                        .setZone("Europe/London")
+                        .toFormat("HH:mm")
                     : "";
-                  const endTime = fullSlot ? formatTime(fullSlot.endDate) : "";
+                  const endTime = fullSlot
+                    ? DateTime.fromISO(fullSlot.endDate, { zone: "utc" })
+                        .setZone("Europe/London")
+                        .toFormat("HH:mm")
+                    : "";
 
                   return (
                     <div
@@ -618,8 +620,12 @@ export default function Clinics() {
                 onClick={(e) => e.stopPropagation()}
               >
                 {listOfSlots.map((slot) => {
-                  const startTime = formatTime(slot.startDate);
-                  const endTime = formatTime(slot.endDate);
+                  const startTime = DateTime.fromISO(slot.startDate, { zone: "utc" })
+                    .setZone("Europe/London")
+                    .toFormat("HH:mm");
+                  const endTime = DateTime.fromISO(slot.endDate, { zone: "utc" })
+                    .setZone("Europe/London")
+                    .toFormat("HH:mm");
 
                   return (
                     <div
