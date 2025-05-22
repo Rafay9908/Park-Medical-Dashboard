@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useClinics } from "../context/ClinicsContext";
 import {
   FaClinicMedical,
@@ -18,6 +18,7 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
+import { DateTime } from "luxon";
 
 const daysOfWeek = [
   "Monday",
@@ -44,163 +45,231 @@ export default function Clinics() {
     loadClinicForEdit,
     resetForm,
     selectedSlots,
-    setSelectedSlots 
+    setSelectedSlots,
+    toggleOperatingHour, // Use the context function instead of local one
   } = useClinics();
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
- const handleSlotToggle = (slot, e) => {
-  e.stopPropagation();
-  setSelectedSlots((prev) => {
-    const exists = prev.some(s => s._id === slot._id);
-    return exists
-      ? prev.filter(s => s._id !== slot._id)
-      : [...prev, { _id: slot._id, slotName: slot.slotName }];
-  });
-};
-
-const handleRemoveSlot = (_id, e) => {
-  e.stopPropagation();
-  setSelectedSlots(prev => prev.filter(s => s._id !== _id));
-};
-
-const isSlotSelected = (_id) => selectedSlots.some(s => s._id === _id);
-
-  const handleTimeChange = (index, field, value) => {
-    const updatedHours = [...formData.operatingHours];
-    updatedHours[index][field] = value;
-    setFormData((prev) => ({
-      ...prev,
-      operatingHours: updatedHours,
-    }));
-  };
-
-  const toggleOpen = (index) => {
-    const updatedHours = [...formData.operatingHours];
-    updatedHours[index].open = !updatedHours[index].open;
-    setFormData((prev) => ({
-      ...prev,
-      operatingHours: updatedHours,
-    }));
-  };
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleIncrement = (field) => {
-    setFormData((prev) => ({ ...prev, [field]: Number(prev[field]) + 1 }));
-  };
-
-  const handleDecrement = (field) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: Math.max(0, Number(prev[field]) - 1),
-    }));
-  };
-
- const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  // Validate required fields
-  if (!formData.clinicName.trim()) {
-    alert("Clinic name is required");
-    return;
-  }
-  if (!formData.address.trim()) {
-    alert("Address is required");
-    return;
-  }
-
-  // Validate operating hours
-  const hasInvalidHours = formData.operatingHours.some((hour) => {
-    if (hour.open) {
-      if (!hour.openingTime || !hour.closingTime) {
-        return true;
+  // Memoize time options to prevent regeneration on every render
+  const timeOptions = useMemo(() => {
+    const options = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const hr = hour.toString().padStart(2, "0");
+        const min = minute.toString().padStart(2, "0");
+        options.push(
+          <option
+            key={`${hr}:${min}`}
+            value={`${hr}:${min}`}
+          >{`${hr}:${min}`}</option>
+        );
       }
-      return hour.openingTime >= hour.closingTime;
     }
-    return false;
-  });
+    return options;
+  }, []);
 
-  if (hasInvalidHours) {
-    alert("For open days, closing time must be after opening time");
-    return;
-  }
+  const handleSlotToggle = useCallback(
+    (slot, e) => {
+      e.stopPropagation();
+      setSelectedSlots((prev) => {
+        const exists = prev.some((s) => s._id === slot._id);
+        return exists
+          ? prev.filter((s) => s._id !== slot._id)
+          : [...prev, { _id: slot._id, slotName: slot.slotName }];
+      });
+    },
+    [setSelectedSlots]
+  );
 
-  // Validate at least one day is open
-  const hasAtLeastOneOpenDay = formData.operatingHours.some(hour => hour.open);
-  if (!hasAtLeastOneOpenDay) {
-    alert("At least one day must be open");
-    return;
-  }
+  const handleRemoveSlot = useCallback(
+    (_id, e) => {
+      e.stopPropagation();
+      setSelectedSlots((prev) => prev.filter((s) => s._id !== _id));
+    },
+    [setSelectedSlots]
+  );
 
-  // Validate minimum sessions
-  if (formData.minSessionPerWeek <= 0) {
-    alert("Minimum sessions per week must be at least 1");
-    return;
-  }
+  const isSlotSelected = useCallback(
+    (_id) => selectedSlots.some((s) => s._id === _id),
+    [selectedSlots]
+  );
 
-  // Validate TFL Zone
-  if (formData.tflZone < 1 || formData.tflZone > 9) {
-    alert("TFL Zone must be between 1 and 9");
-    return;
-  }
+  const handleTimeChange = useCallback(
+    (index, field, value) => {
+      setFormData((prev) => {
+        const updatedHours = [...prev.operatingHours];
+        updatedHours[index][field] = value;
+        return {
+          ...prev,
+          operatingHours: updatedHours,
+        };
+      });
+    },
+    [setFormData]
+  );
 
-  // Validate walking minutes
-  if (formData.walkingMinutesToStations < 0) {
-    alert("Walking minutes cannot be negative");
-    return;
-  }
+  // Remove the local toggleOpen function since we're using the context one
+
+  const handleChange = useCallback(
+    (e) => {
+      const { name, value, type, checked } = e.target;
+      setFormData((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      }));
+    },
+    [setFormData]
+  );
+
+  const handleIncrement = useCallback(
+    (field) => {
+      setFormData((prev) => ({ ...prev, [field]: Number(prev[field]) + 1 }));
+    },
+    [setFormData]
+  );
+
+  const handleDecrement = useCallback(
+    (field) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: Math.max(0, Number(prev[field]) - 1),
+      }));
+    },
+    [setFormData]
+  );
+
+  const formatTime = useCallback(
+    (isoString, format = "HH:mm") => {
+      return DateTime.fromISO(isoString, { zone: "utc" })
+        .setZone("Europe/London")
+        .toFormat(format);
+    },
+    []
+  );
+
+  const formatTimeDisplay = useCallback((timeString) => {
+    if (!timeString) return "--";
+    return timeString.replace(/^(\d{2}):(\d{2})$/, (match, hh, mm) => {
+      const hour = parseInt(hh, 10);
+      const period = hour >= 12 ? "PM" : "AM";
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${mm} ${period}`;
+    });
+  }, []);
+
+  const setAllHours = useCallback(
+    (open) => {
+      setFormData((prev) => ({
+        ...prev,
+        operatingHours: prev.operatingHours.map((hour) => ({
+          ...hour,
+          open: open,
+        })),
+      }));
+    },
+    [setFormData]
+  );
+
+  const setStandardHours = useCallback(
+    (start, end) => {
+      setFormData((prev) => ({
+        ...prev,
+        operatingHours: prev.operatingHours.map((hour) => ({
+          ...hour,
+          openingTime: start,
+          closingTime: end,
+        })),
+      }));
+    },
+    [setFormData]
+  );
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.clinicName.trim()) {
+      alert("Clinic name is required");
+      return;
+    }
+    if (!formData.address.trim()) {
+      alert("Address is required");
+      return;
+    }
+
+    const hasInvalidHours = formData.operatingHours.some((hour) => {
+      if (hour.open) {
+        if (!hour.openingTime || !hour.closingTime) {
+          return true;
+        }
+        return hour.openingTime >= hour.closingTime;
+      }
+      return false;
+    });
+
+    if (hasInvalidHours) {
+      alert("For open days, closing time must be after opening time");
+      return;
+    }
+
+    const hasAtLeastOneOpenDay = formData.operatingHours.some(
+      (hour) => hour.open
+    );
+    if (!hasAtLeastOneOpenDay) {
+      alert("At least one day must be open");
+      return;
+    }
+
+    if (formData.minSessionPerWeek <= 0) {
+      alert("Minimum sessions per week must be at least 1");
+      return;
+    }
+
+    if (formData.tflZone < 1 || formData.tflZone > 9) {
+      alert("TFL Zone must be between 1 and 9");
+      return;
+    }
+
+    if (formData.walkingMinutesToStations < 0) {
+      alert("Walking minutes cannot be negative");
+      return;
+    }
 
     setIsSubmitting(true);
 
-  try {
-    // Prepare the data to submit
-    const dataToSubmit = {
-      ...formData,
-      // Convert selected slots to just their IDs for the backend
-      slotIds: selectedSlots.map(slot => slot._id),
-      // Ensure wheelchairAccessible is boolean
-      wheelchairAccessible: !!formData.wheelchairAccessible,
-      // Convert numbers from strings if needed
-      minSessionPerWeek: Number(formData.minSessionPerWeek),
-      walkingMinutesToStations: Number(formData.walkingMinutesToStations),
-      tflZone: String(formData.tflZone),
-      // Filter out closed days from operating hours
-      operatingHours: formData.operatingHours
-        .filter(hour => hour.open)
-        .map(hour => ({
-          day: hour.day,
-          isOpen: true,
-          openingTime: hour.openingTime,
-          closingTime: hour.closingTime
-        }))
-    };
+    try {
+      const dataToSubmit = {
+        ...formData,
+        slotIds: selectedSlots.map((slot) => slot._id),
+        wheelchairAccessible: !!formData.wheelchairAccessible,
+        minSessionPerWeek: Number(formData.minSessionPerWeek),
+        walkingMinutesToStations: Number(formData.walkingMinutesToStations),
+        tflZone: String(formData.tflZone),
+        operatingHours: formData.operatingHours
+          .filter((hour) => hour.open)
+          .map((hour) => ({
+            day: hour.day,
+            isOpen: true,
+            openingTime: hour.openingTime,
+            closingTime: hour.closingTime,
+          })),
+      };
 
-    // Call the save function
-    await saveClinic(dataToSubmit, editingId);
-    
-    // Success feedback
-    alert(`Clinic ${editingId ? "updated" : "added"} successfully!`);
-    
-    // Reset form and selected slots
-    resetForm();
-    setSelectedSlots([]);
-    
-  } catch (error) {
-    console.error("Error:", error);
-    alert(error.response?.data?.message || "An error occurred. Please try again.");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      await saveClinic(dataToSubmit, editingId);
+      alert(`Clinic ${editingId ? "updated" : "added"} successfully!`);
+      resetForm();
+      setSelectedSlots([]);
+    } catch (error) {
+      console.error("Error:", error);
+      alert(
+        error.response?.data?.message || "An error occurred. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this clinic?")) {
@@ -213,52 +282,53 @@ const isSlotSelected = (_id) => selectedSlots.some(s => s._id === _id);
     }
   };
 
-  const generateTimeOptions = () => {
-    const options = [];
-    for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const hr = hour.toString().padStart(2, "0");
-        const min = minute.toString().padStart(2, "0");
-        options.push(
-          <option key={`${hr}:${min}`} value={`${hr}:${min}`}>{`${hr}:${min}`}</option>
-        );
-      }
-    }
-    return options;
-  };
+  // Memoize the operating hours rendering
+  const renderOperatingHours = useMemo(() => {
+    return formData.operatingHours.map((hour, index) => (
+      <div
+        key={hour.day}
+        className="flex justify-around items-center gap-4 mb-6 col-span-2"
+      >
+        <div className="w-24 font-semibold text-gray-800">{hour.day}</div>
 
-  const setAllHours = (open) => {
-    setFormData((prev) => ({
-      ...prev,
-      operatingHours: prev.operatingHours.map((hour) => ({
-        ...hour,
-        open: open,
-      })),
-    }));
-  };
+        <select
+          className="border border-gray-300 rounded-md p-2"
+          value={hour.openingTime}
+          onChange={(e) =>
+            handleTimeChange(index, "openingTime", e.target.value)
+          }
+          disabled={!hour.open}
+        >
+          {timeOptions}
+        </select>
 
-  const setStandardHours = (start, end) => {
-    setFormData((prev) => ({
-      ...prev,
-      operatingHours: prev.operatingHours.map((hour) => ({
-        ...hour,
-        openingTime: start,
-        closingTime: end,
-      })),
-    }));
-  };
+        <span className="text-gray-500">to</span>
 
-  const formatTimeDisplay = (timeString) => {
-    if (!timeString) return "--";
-    try {
-      return new Date(`2000-01-01T${timeString}`).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "--";
-    }
-  };
+        <select
+          className="border border-gray-300 rounded-md p-2"
+          value={hour.closingTime}
+          onChange={(e) =>
+            handleTimeChange(index, "closingTime", e.target.value)
+          }
+          disabled={!hour.open}
+        >
+          {timeOptions}
+        </select>
+
+        <label className="flex items-center gap-2 ml-2">
+          <input
+            type="checkbox"
+            checked={hour.open}
+            onChange={() => toggleOperatingHour(index)}
+            className="accent-blue-600 w-5 h-5"
+          />
+          <span className={hour.open ? "text-green-600" : "text-red-600"}>
+            {hour.open ? "Open" : "Closed"}
+          </span>
+        </label>
+      </div>
+    ));
+  }, [formData.operatingHours, handleTimeChange, timeOptions, toggleOperatingHour]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
@@ -272,7 +342,10 @@ const isSlotSelected = (_id) => selectedSlots.some(s => s._id === _id);
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-8 mb-8">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-8 rounded-3xl w-full max-w-4xl space-y-8 mb-8"
+      >
         <h2 className="text-2xl font-semibold">
           {editingId ? "Edit Clinic" : "Add New Clinic"}
         </h2>
@@ -490,101 +563,87 @@ const isSlotSelected = (_id) => selectedSlots.some(s => s._id === _id);
             <span className="text-red-500">⏰</span> Operating Hours
           </h2>
 
-       <div className="relative w-full col-span-2">
-  {/* Selected slots display area */}
-  <div
-    className="flex flex-wrap items-center gap-2 border p-3 rounded-lg min-h-[52px] cursor-pointer bg-white"
-    onClick={(e) => {
-      e.stopPropagation();
-      setIsDropdownOpen((prev) => !prev);
-    }}
-  >
-    {selectedSlots.length === 0 ? (
-      <span className="text-gray-400">Select time slots</span>
-    ) : (
-      selectedSlots.map((slot) => {
-        const fullSlot = listOfSlots.find((s) => s._id === slot._id);
-        const startTime = fullSlot
-          ? new Date(fullSlot.startDate).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "";
-        const endTime = fullSlot
-          ? new Date(fullSlot.endDate).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "";
-
-        return (
-          <div
-            key={slot._id}
-            className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center gap-1"
-          >
-            <span>{slot.slotName}</span>
-            {startTime && endTime && (
-              <span className="text-gray-600">
-                ({startTime} - {endTime})
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={(e) => handleRemoveSlot(slot._id, e)}
-              className="ml-1 text-blue-500 hover:text-blue-700 cursor-pointer"
+          <div className="relative w-full col-span-2">
+            {/* Selected Slots Display Area */}
+            <div
+              className="flex flex-wrap items-center gap-2 border p-3 rounded-lg min-h-[52px] cursor-pointer bg-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDropdownOpen((prev) => !prev);
+              }}
             >
-              <FaTimes className="w-3 h-3" />
-            </button>
-          </div>
-        );
-      })
-    )}
-    <FaChevronDown
-      className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${
-        isDropdownOpen ? "rotate-180" : ""
-      }`}
-    />
-  </div>
+              {selectedSlots.length === 0 ? (
+                <span className="text-gray-400">Select time slots</span>
+              ) : (
+                selectedSlots.map((slot) => {
+                  const fullSlot = listOfSlots.find((s) => s._id === slot._id);
+                  const startTime = fullSlot
+                    ? formatTime(fullSlot.startDate)
+                    : "";
+                  const endTime = fullSlot ? formatTime(fullSlot.endDate) : "";
 
-  {/* Dropdown menu for slot selection */}
-  {isDropdownOpen && (
-    <div
-      className="absolute z-10 w-full mt-1 border rounded-lg shadow-lg bg-white max-h-60 overflow-y-auto"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {listOfSlots.map((slot) => {
-        const startTime = new Date(slot.startDate).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        const endTime = new Date(slot.endDate).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-
-        return (
-          <div
-            key={slot._id}
-            className={`p-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center ${
-              isSlotSelected(slot._id) ? "bg-blue-50" : ""
-            }`}
-            onClick={(e) => handleSlotToggle(slot, e)}
-          >
-            <div>
-              <div className="font-medium">{slot.slotName}</div>
-              <div className="text-sm text-gray-500">
-                {startTime} - {endTime}
-              </div>
+                  return (
+                    <div
+                      key={slot._id}
+                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full flex items-center gap-1"
+                    >
+                      <span>{slot.slotName}</span>
+                      {startTime && endTime && (
+                        <span className="text-gray-600">
+                          ({startTime} - {endTime})
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveSlot(slot._id, e)}
+                        className="ml-1 text-blue-500 hover:text-blue-700 cursor-pointer"
+                      >
+                        <FaTimes className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+              <FaChevronDown
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${
+                  isDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
             </div>
-            {isSlotSelected(slot._id) && (
-              <div className="text-blue-500">✓</div>
+
+            {/* Dropdown Menu for Slot Selection */}
+            {isDropdownOpen && (
+              <div
+                className="absolute z-10 w-full mt-1 border rounded-lg shadow-lg bg-white max-h-60 overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {listOfSlots.map((slot) => {
+                  const startTime = formatTime(slot.startDate);
+                  const endTime = formatTime(slot.endDate);
+
+                  return (
+                    <div
+                      key={slot._id}
+                      className={`p-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center ${
+                        isSlotSelected(slot._id) ? "bg-blue-50" : ""
+                      }`}
+                      onClick={(e) => handleSlotToggle(slot, e)}
+                    >
+                      <div>
+                        <div className="font-medium">{slot.slotName}</div>
+                        <div className="text-sm text-gray-500">
+                          {startTime} - {endTime}
+                        </div>
+                      </div>
+                      {isSlotSelected(slot._id) && (
+                        <div className="text-blue-500">✓</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        );
-      })}
-    </div>
-  )}
-</div>
 
           <div className="col-span-2 flex gap-4 mb-4">
             <button
@@ -617,50 +676,7 @@ const isSlotSelected = (_id) => selectedSlots.some(s => s._id === _id);
             </button>
           </div>
 
-          {formData.operatingHours.map((hour, index) => (
-            <div
-              key={hour.day}
-              className="flex justify-around items-center gap-4 mb-6 col-span-2"
-            >
-              <div className="w-24 font-semibold text-gray-800">{hour.day}</div>
-
-              <select
-                className="border border-gray-300 rounded-md p-2"
-                value={hour.openingTime}
-                onChange={(e) =>
-                  handleTimeChange(index, "openingTime", e.target.value)
-                }
-                disabled={!hour.open}
-              >
-                {generateTimeOptions()}
-              </select>
-
-              <span className="text-gray-500">to</span>
-
-              <select
-                className="border border-gray-300 rounded-md p-2"
-                value={hour.closingTime}
-                onChange={(e) =>
-                  handleTimeChange(index, "closingTime", e.target.value)
-                }
-                disabled={!hour.open}
-              >
-                {generateTimeOptions()}
-              </select>
-
-              <label className="flex items-center gap-2 ml-2">
-                <input
-                  type="checkbox"
-                  checked={hour.open}
-                  onChange={() => toggleOpen(index)}
-                  className="accent-blue-600 w-5 h-5"
-                />
-                <span className={hour.open ? "text-green-600" : "text-red-600"}>
-                  {hour.open ? "Open" : "Closed"}
-                </span>
-              </label>
-            </div>
-          ))}
+          {renderOperatingHours}
         </div>
 
         <div className="flex justify-center gap-4">
@@ -798,9 +814,11 @@ const isSlotSelected = (_id) => selectedSlots.some(s => s._id === _id);
                       </h4>
                       <div className="space-y-4 mb-4">
                         {daysOfWeek.map((day) => {
-                          const hour = clinic.operatingHours?.find(h => h.day === day);
+                          const hour = clinic.operatingHours?.find(
+                            (h) => h.day === day
+                          );
                           const isOpen = !!hour;
-                          
+
                           return (
                             <div
                               key={day}

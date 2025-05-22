@@ -60,32 +60,31 @@ export function ClinicsProvider({ children }) {
     }
   };
 
-const saveClinic = async (clinicData, id = null) => {
-  setIsLoading(true);
-  setError(null);
-  try {
-    const cleanedData = {
-      ...clinicData,
-      // Make sure slotIds is an array of strings
-      slotIds: clinicData.slotIds.map(id => id.toString())
-    };
+  const saveClinic = async (clinicData, id = null) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const cleanedData = {
+        ...clinicData,
+        slotIds: clinicData.slotIds.map(id => id.toString())
+      };
 
-    let response;
-    if (id) {
-      response = await axios.put(`${apiUrl}/clinics/${id}`, cleanedData);
-    } else {
-      response = await axios.post(`${apiUrl}/clinics`, cleanedData);
+      let response;
+      if (id) {
+        response = await axios.put(`${apiUrl}/clinics/${id}`, cleanedData);
+      } else {
+        response = await axios.post(`${apiUrl}/clinics`, cleanedData);
+      }
+      await fetchClinics();
+      return response.data;
+    } catch (error) {
+      console.error("Error saving clinic:", error.response?.data || error);
+      setError(error.response?.data?.message || "Failed to save clinic");
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-    await fetchClinics();
-    return response.data;
-  } catch (error) {
-    console.error("Error saving clinic:", error.response?.data || error);
-    setError(error.response?.data?.message || "Failed to save clinic");
-    throw error;
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const deleteClinic = async (id) => {
     setIsLoading(true);
@@ -102,43 +101,41 @@ const saveClinic = async (clinicData, id = null) => {
     }
   };
 
- const loadClinicForEdit = (clinic) => {
-  setEditingId(clinic._id);
-  
-  // Create a complete set of operating hours
-  const completeOperatingHours = daysOfWeek.map(day => {
-    const hourData = clinic.operatingHours?.find(h => h.day === day);
-    return hourData ? {
-      day,
-      open: true,
-      openingTime: hourData.openingTime || "08:00",
-      closingTime: hourData.closingTime || "20:00"
-    } : {
-      day,
-      open: false,
-      openingTime: "08:00",
-      closingTime: "20:00"
-    };
-  });
+  const loadClinicForEdit = (clinic) => {
+    setEditingId(clinic._id);
+    
+    const completeOperatingHours = daysOfWeek.map(day => {
+      const hourData = clinic.operatingHours?.find(h => h.day === day);
+      return hourData ? {
+        day,
+        open: true,
+        openingTime: hourData.openingTime || "08:00",
+        closingTime: hourData.closingTime || "20:00"
+      } : {
+        day,
+        open: false,
+        openingTime: "08:00",
+        closingTime: "20:00"
+      };
+    });
 
-  setFormData({
-    ...clinic,
-    operatingHours: completeOperatingHours
-  });
+    setFormData({
+      ...clinic,
+      operatingHours: completeOperatingHours
+    });
 
-  // Set the selected slots
-  if (clinic.slotIds && clinic.slotIds.length > 0) {
-    const slotsToSelect = listOfSlots.filter(slot => 
-      clinic.slotIds.some(id => id.toString() === slot._id.toString())
-    );
-    setSelectedSlots(slotsToSelect.map(slot => ({
-      _id: slot._id,
-      slotName: slot.slotName
-    })));
-  } else {
-    setSelectedSlots([]);
-  }
-};
+    if (clinic.slotIds && clinic.slotIds.length > 0) {
+      const slotsToSelect = listOfSlots.filter(slot => 
+        clinic.slotIds.some(id => id.toString() === slot._id.toString())
+      );
+      setSelectedSlots(slotsToSelect.map(slot => ({
+        _id: slot._id,
+        slotName: slot.slotName
+      })));
+    } else {
+      setSelectedSlots([]);
+    }
+  };
 
   const fetchListOfSlots = async () => {
     setIsLoading(true);
@@ -157,11 +154,26 @@ const saveClinic = async (clinicData, id = null) => {
     }
   };
 
- const resetForm = () => {
-  setFormData(initialFormData);
-  setEditingId(null);
-  setSelectedSlots([]);
-};
+  const resetForm = () => {
+    setFormData(initialFormData);
+    setEditingId(null);
+    setSelectedSlots([]);
+  };
+
+  // Add this new function to handle toggling operating hours
+  const toggleOperatingHour = (index) => {
+    setFormData(prev => {
+      const updatedHours = [...prev.operatingHours];
+      updatedHours[index] = {
+        ...updatedHours[index],
+        open: !updatedHours[index].open
+      };
+      return {
+        ...prev,
+        operatingHours: updatedHours
+      };
+    });
+  };
 
   useEffect(() => {
     fetchClinics();
@@ -185,6 +197,7 @@ const saveClinic = async (clinicData, id = null) => {
         resetForm,
         selectedSlots,
         setSelectedSlots,
+        toggleOperatingHour // Add this to the context
       }}
     >
       {children}

@@ -13,15 +13,19 @@ const MainRota = () => {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
 
-  // Define static session labels
-  const staticSessions = ["Session 1", "Session 2", "Session 3"];
+  // Define time slots for the day
+  const timeSlots = [
+    "Morning (8:00-12:00)",
+    "Afternoon (12:00-17:00)",
+    "Evening (17:00-21:00)"
+  ];
 
   useEffect(() => {
     const fetchRotaData = async () => {
       try {
         setLoading(true);
         const response = await axios.get(`${apiUrl}/rota`);
-        const data = response.data;
+        const data = response.data.rota || [];
 
         console.log("Raw API data:", data); // Debugging
 
@@ -30,30 +34,14 @@ const MainRota = () => {
           ...new Set(data.map(item => item.clinic?.clinicName).filter(Boolean))
         ].sort();
 
-        // Extract and format days - handle both date strings and day names
+        // Extract and format days from the startDate
         const extractedDays = data.map(item => {
           try {
-            if (!item.day) return null;
-            
-            // If it's already a day name
-            const dayNames = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-            if (dayNames.includes(item.day)) return item.day;
-            
-            // If it's a date string
-            const date = new Date(item.day);
-            if (!isNaN(date.getTime())) {
-              return format(date, "EEEE");
-            }
-            
-            // If it's an abbreviation
-            const abbrMap = { mo: "Monday", tu: "Tuesday", we: "Wednesday", 
-                             th: "Thursday", fr: "Friday", sa: "Saturday", su: "Sunday" };
-            const lowerDay = item.day.toLowerCase();
-            if (abbrMap[lowerDay]) return abbrMap[lowerDay];
-            
-            return null;
+            if (!item.startDate) return null;
+            const date = parseISO(item.startDate);
+            return format(date, "EEEE");
           } catch (e) {
-            console.error("Error processing day:", item.day, e);
+            console.error("Error processing date:", item.startDate, e);
             return null;
           }
         }).filter(Boolean);
@@ -104,6 +92,23 @@ const MainRota = () => {
     }
   };
 
+  const getTimeSlot = (startDate) => {
+    if (!startDate) return "";
+    try {
+      const date = new Date(startDate);
+      if (isNaN(date.getTime())) return "";
+      
+      const hours = date.getHours();
+      if (hours >= 8 && hours < 12) return timeSlots[0];
+      if (hours >= 12 && hours < 17) return timeSlots[1];
+      if (hours >= 17 && hours < 21) return timeSlots[2];
+      return "Other Time";
+    } catch (e) {
+      console.error("Error determining time slot:", e);
+      return "";
+    }
+  };
+
   const getGroupedData = () => {
     const grouped = {};
     
@@ -112,24 +117,22 @@ const MainRota = () => {
         const clinicName = entry.clinic?.clinicName;
         if (!clinicName) return;
         
-        // Determine day name
+        // Determine day name from startDate
         let dayName = "";
-        if (["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].includes(entry.day)) {
-          dayName = entry.day;
-        } else {
-          const date = new Date(entry.day);
+        if (entry.startDate) {
+          const date = new Date(entry.startDate);
           dayName = !isNaN(date.getTime()) ? format(date, "EEEE") : "Unknown";
         }
         
-        const sessionType = entry.sessionType || "Unassigned";
+        const timeSlot = getTimeSlot(entry.startDate);
         
         if (!grouped[clinicName]) grouped[clinicName] = {};
         if (!grouped[clinicName][dayName]) grouped[clinicName][dayName] = {};
-        if (!grouped[clinicName][dayName][sessionType]) {
-          grouped[clinicName][dayName][sessionType] = [];
+        if (!grouped[clinicName][dayName][timeSlot]) {
+          grouped[clinicName][dayName][timeSlot] = [];
         }
         
-        grouped[clinicName][dayName][sessionType].push(entry);
+        grouped[clinicName][dayName][timeSlot].push(entry);
       } catch (e) {
         console.error("Error processing entry:", entry, e);
       }
@@ -192,7 +195,7 @@ const MainRota = () => {
               <thead>
                 <tr>
                   <th className="bg-[#1E2939] text-white p-4 border border-gray-200 sticky left-0 z-20 min-w-[180px] text-left">
-                    Day/Session
+                    Day/Time Slot
                   </th>
                   {clinics.map((clinic, index) => (
                     <th
@@ -224,25 +227,22 @@ const MainRota = () => {
                         ))}
                       </tr>
                       
-                      {staticSessions.map((session, sessionIndex) => (
+                      {timeSlots.map((timeSlot, timeSlotIndex) => (
                         <tr 
-                          key={`${dayIndex}-${sessionIndex}`} 
-                          className={sessionIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                          key={`${dayIndex}-${timeSlotIndex}`} 
+                          className={timeSlotIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
                         >
                           <td className="p-3 border border-gray-200 sticky left-0 z-10 bg-blue-50 whitespace-nowrap">
                             <div className="flex items-center pl-4">
                               <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                               <div className="font-medium text-blue-800">
-                                {session}
+                                {timeSlot}
                               </div>
                             </div>
                           </td>
                           {clinics.map((clinic, clinicIndex) => {
-                            const sessionsForDay = groupedData[clinic]?.[day] || {};
-                            const sessionTypes = Object.keys(sessionsForDay);
-                            const entries = sessionTypes[sessionIndex] 
-                              ? sessionsForDay[sessionTypes[sessionIndex]] || [] 
-                              : [];
+                            const slotsForDay = groupedData[clinic]?.[day] || {};
+                            const entries = slotsForDay[timeSlot] || [];
                             
                             return (
                               <td
@@ -260,13 +260,11 @@ const MainRota = () => {
                                           {entry.clinician?.clinicianName || "No Clinician"}
                                         </div>
                                         <div className="text-gray-500 text-sm mt-1 whitespace-nowrap">
-                                          {entry.sessionType || "Unassigned"}
+                                          {entry.slotName || "Unassigned"}
                                         </div>
-                                        {entry.slot && (
-                                          <div className="text-gray-500 text-sm mt-1 whitespace-nowrap">
-                                            {formatSessionTime(entry.slot.startDate, entry.slot.endDate)}
-                                          </div>
-                                        )}
+                                        <div className="text-gray-500 text-sm mt-1 whitespace-nowrap">
+                                          {formatSessionTime(entry.startDate, entry.endDate)}
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
@@ -285,7 +283,7 @@ const MainRota = () => {
                 ) : (
                   <tr>
                     <td colSpan={clinics.length + 1} className="p-4 text-center text-gray-500">
-                      No days data available
+                      No schedule data available
                     </td>
                   </tr>
                 )}
