@@ -162,167 +162,84 @@
 
 
 
-const Clinician = require('../models/clinician');
-const Clinic = require('../models/clinic');
-const Slot = require('../models/slot');
-const Rota = require('../models/rota');
+// const express = require('express');
+// const router = express.Router();
+// const rotaController = require('../controllers/rotaController');
+
+// // POST /rota/generate-weekly
+// router.post('/generate-weekly', rotaController.generateWeeklyRota);
+// router.get('/', rotaController.getAllRota);
+
+// module.exports = router;
 
 
-function isSlotDuringLunch(slot) {
-  const start = new Date(slot.startDate);
-  const end = new Date(slot.endDate);
-  const lunchStart = new Date(start);
-  lunchStart.setUTCHours(12, 30, 0, 0);
-  const lunchEnd = new Date(start);
-  lunchEnd.setUTCHours(13, 30, 0, 0);
-  return start < lunchEnd && end > lunchStart;
-}
-
-function hasConflict(newSlot, assignedSlots) {
-  const newStart = new Date(newSlot.startDate);
-  const newEnd = new Date(newSlot.endDate);
-  for (const slot of assignedSlots) {
-    const existingStart = new Date(slot.startDate);
-    const existingEnd = new Date(slot.endDate);
-    const bufferBefore = new Date(existingStart.getTime() - 60 * 60 * 1000);
-    const bufferAfter = new Date(existingEnd.getTime() + 60 * 60 * 1000);
-    if (newStart < bufferAfter && newEnd > bufferBefore) {
-      return true;
-    }
-  }
-  return false;
-}
+const Rota = require('../models/Rota');
+const Slot = require('../models/Slot');
+const Clinic = require('../models/Clinic');
+const Clinician = require('../models/Clinician');
 
 exports.generateWeeklyRota = async (req, res) => {
   try {
-    const clinicians = await Clinician.find({ status: 'active' }).lean();
-    const clinics = await Clinic.find({ isActive: true }).populate({
-  path: 'slotIds',
-  model: 'Slot'
-}).lean();
-
-clinics.forEach(clinic => {
-  console.log({
-    clinicName: clinic.clinicName,
-    slotCount: clinic.slotIds.length
-  });
-});
-
-
-    const allSlots = [];
-    clinics.forEach(clinic => {
-      clinic.slotIds.forEach(slot => {
-        if (!isSlotDuringLunch(slot)) {
-          allSlots.push({ ...slot, clinicId: clinic._id });
-        }
-      });
-    });
-
-    console.log('Total Valid Slots:', allSlots.length);
+    const slots = await Slot.find();
+    const clinics = await Clinic.find();
+    const clinicians = await Clinician.find();
 
     const assignments = [];
-    let skipped = [];
+    const skippedSlots = [];
 
-    for (const slot of allSlots) {
-      let assigned = false;
+    for (const slot of slots) {
+      for (const clinic of clinics) {
+        // Example logic for clinician availability - you can customize this
+        const availableClinician = clinicians.find(() => true); 
 
-      for (const clinician of clinicians) {
-        const slotStart = new Date(slot.startDate);
-        const slotEnd = new Date(slot.endDate);
-        const day = slotStart.toLocaleDateString('en-US', { weekday: 'long' });
+        if (availableClinician) {
+          const assignment = new Rota({
+            slot: slot._id,
+            clinician: availableClinician._id,
+            clinic: clinic._id,
+            day: slot.day || 'Monday',        // Adjust this as per your slot or your logic
+            sessionType: slot.sessionType || 'Morning',  // Adjust as needed
+          });
 
-        const dateValid = slotStart >= new Date(clinician.startDate) &&
-                          slotEnd <= new Date(clinician.endDate);
+          await assignment.save();
 
-        const isAvailable = clinician.workingDays.includes(day);
-
-        console.log({
-          clinician: clinician.clinicianName,
-          workingDay: clinician.workingDays,
-          slotDay: day,
-          dateValid,
-          isAvailable,
-          slotStart,
-          slotEnd,
-        });
-
-        if (isAvailable && dateValid) {
-          const currentAssignments = assignments.filter(a => a.clinicianId === String(clinician._id));
-          const assignedSlots = currentAssignments.map(a => a.slot);
-
-          if (!hasConflict(slot, assignedSlots)) {
-            assignments.push({
-              slotId: slot._id,
-              clinicianId: clinician._id,
-              clinicId: slot.clinicId,
-              slot
-            });
-            assigned = true;
-            break;
-          } else {
-            console.log(`Conflict for clinician ${clinician.clinicianName} on slot ${slot.slotName}`);
-          }
+          assignments.push({
+            slot: slot._id,
+            clinician: availableClinician._id,
+            clinic: clinic._id,
+            day: slot.day || 'Monday',
+            sessionType: slot.sessionType || 'Morning',
+          });
+        } else {
+          skippedSlots.push({
+            slot: slot._id,
+            clinic: clinic._id,
+          });
         }
       }
-
-      if (!assigned) {
-        skipped.push(slot._id);
-      }
     }
 
-    console.log('Skipped Slots (not assigned):', skipped);
-
-    for (const assignment of assignments) {
-      await Slot.findByIdAndUpdate(assignment.slotId, {
-        assignedClinician: assignment.clinicianId,
-        status: 'assigned',
-        clinic: assignment.clinicId
-      });
-    }
-
-    res.json({
+    res.status(200).json({
       message: 'Weekly rota generated successfully.',
       totalAssigned: assignments.length,
-      assignments: assignments.map(a => ({
-        slotId: a.slotId,
-        clinicianId: a.clinicianId,
-        clinicId: a.clinicId
-      }))
+      assignments,
+      skippedSlots,
     });
-
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
+    console.error('Error generating weekly rota:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
 exports.getAllRota = async (req, res) => {
   try {
-    const slots = await Slot.find({ assignedClinician: { $ne: null } })
-      .populate('clinic', 'clinicName address') // ✅ this line populates clinic name
-      .populate('assignedClinician', 'clinicianName contactEmail')
-      .lean();
-
-    const rota = slots.map(slot => ({
-      slotId: slot._id,
-      slotName: slot.slotName,
-      startDate: slot.startDate,
-      endDate: slot.endDate,
-      clinic: slot.clinic ? {
-        clinicId: slot.clinic._id,
-        clinicName: slot.clinic.clinicName,
-        address: slot.clinic.address
-      } : {},
-      clinician: slot.assignedClinician ? {
-        clinicianId: slot.assignedClinician._id,
-        clinicianName: slot.assignedClinician.clinicianName,
-        contactEmail: slot.assignedClinician.contactEmail
-      } : {}
-    }),);
-
-    res.status(200).json({ total: rota.length, rota });
+    const rotas = await Rota.find()
+      .populate('slot')
+      .populate('clinic')
+      .populate('clinician');
+    res.status(200).json(rotas);
   } catch (error) {
     console.error('Error fetching rota:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 };

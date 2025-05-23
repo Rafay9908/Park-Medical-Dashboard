@@ -1,8 +1,8 @@
 const moment = require('moment');
-const Rota = require('../models/rota');
-const Clinic = require('../models/clinic');
-const Clinician = require('../models/clinician');
-const Slot = require('../models/slot');
+const Rota = require('../models/Rota');
+const Clinic = require('../models/Clinic');
+const Clinician = require('../models/Clinician');
+const Slot = require('../models/Slot');
 
 const generateWeeklyRota = async () => {
   const startDate = moment().startOf('isoWeek'); // Monday
