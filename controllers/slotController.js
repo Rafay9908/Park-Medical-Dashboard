@@ -1,5 +1,3 @@
-
-
 const Slot = require('../models/slot');
 
 // Create slot

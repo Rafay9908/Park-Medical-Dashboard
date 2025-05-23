@@ -37,7 +37,8 @@ const rotaSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-rotaSchema.index({ clinician: 1, slot: 1, day: 1 }, { unique: true });
+rotaSchema.index({ clinician: 1, slot: 1, day: 1, clinic: 1 }, { unique: true });
+
 
 module.exports = mongoose.model('Rota', rotaSchema);
                                                           
