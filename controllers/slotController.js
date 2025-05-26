@@ -13,11 +13,11 @@ exports.createSlot = async (req, res) => {
     const breakEnd = new Date(start);
     breakEnd.setUTCHours(13, 30, 0, 0);
 
-    if (start < breakEnd && end > breakStart) {
-      return res.status(400).json({
-        message: "Slot overlaps with the lunch break (12:30 PM – 1:30 PM)."
-      });
-    }
+    // if (start < breakEnd && end > breakStart) {
+    //   return res.status(400).json({
+    //     message: "Slot overlaps with the lunch break (12:30 PM – 1:30 PM)."
+    //   });
+    // }
 
     const bufferBefore = new Date(start.getTime() - 60 * 60 * 1000);
     const bufferAfter = new Date(end.getTime() + 60 * 60 * 1000);
