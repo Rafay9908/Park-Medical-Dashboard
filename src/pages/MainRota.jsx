@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { format, addDays, startOfWeek, parseISO } from "date-fns";
+import { format, addDays, startOfWeek } from "date-fns";
 
 const MainRota = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -13,42 +13,35 @@ const MainRota = () => {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
 
-  // Static session names to maintain the same UI structure
-  const staticSessions = ["Session 1", "Session 2", "Session 3"];
-
   useEffect(() => {
     const fetchRotaData = async () => {
       try {
         setLoading(true);
         const response = await axios.get(`${apiUrl}/rota`);
-        const data = response.data.rota || [];
-
-        console.log("Raw API data:", data); // Debugging
+        const data = response.data || [];
 
         // Extract unique clinic names
         const uniqueClinics = [
-          ...new Set(data.map(item => item.clinic?.clinicName).filter(Boolean))
+          ...new Set(
+            data.map((item) => item.clinic?.clinicName).filter(Boolean)
+          ),
         ].sort();
 
-        // Extract and format days from the startDate
-        const extractedDays = data.map(item => {
-          try {
-            if (!item.startDate) return null;
-            const date = new Date(item.startDate);
-            return format(date, "EEEE");
-          } catch (e) {
-            console.error("Error processing date:", item.startDate, e);
-            return null;
-          }
-        }).filter(Boolean);
-
-        const uniqueDays = [...new Set(extractedDays)].sort((a, b) => {
-          const dayOrder = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+        // Extract unique days from the 'day' field in the data
+        const uniqueDays = [
+          ...new Set(data.map((item) => item.day).filter(Boolean)),
+        ].sort((a, b) => {
+          const dayOrder = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+          ];
           return dayOrder.indexOf(a) - dayOrder.indexOf(b);
         });
-
-        console.log("Processed clinics:", uniqueClinics); // Debugging
-        console.log("Processed days:", uniqueDays); // Debugging
 
         setRotaData(data);
         setClinics(uniqueClinics);
@@ -66,69 +59,82 @@ const MainRota = () => {
   }, []);
 
   const getDateForDay = (dayName) => {
-    const dayIndex = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-      .indexOf(dayName);
+    const dayIndex = [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ].indexOf(dayName);
     if (dayIndex === -1) return "";
-    
+
     const dateForDay = addDays(currentWeekStart, dayIndex);
     return format(dateForDay, "do MMM");
   };
 
-  const formatSessionTime = (startDate, endDate) => {
+  const formatSessionTimeUTC = (startDate, endDate) => {
     if (!startDate || !endDate) return "";
     try {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) return "";
-      
-      return `${format(start, "h:mm a")} - ${format(end, "h:mm a")}`;
+      // Parse the ISO string and extract just the time part in UTC
+      const startTime = new Date(startDate).toISOString().substr(11, 5); // Gets HH:MM
+      const endTime = new Date(endDate).toISOString().substr(11, 5); // Gets HH:MM
+
+      // Convert to 12-hour format
+      const formatTime = (timeStr) => {
+        const [hours, minutes] = timeStr.split(":");
+        const hour = parseInt(hours, 10);
+        const period = hour >= 12 ? "PM" : "AM";
+        const displayHour = hour % 12 || 12;
+        return `${displayHour}:${minutes} ${period}`;
+      };
+
+      return `${formatTime(startTime)} - ${formatTime(endTime)}`;
     } catch (e) {
       console.error("Error formatting session time:", e);
       return "";
     }
   };
 
-  // Group data by clinic, then by day, then by time period (morning/afternoon/evening)
+  // Group data by clinic, then by day, then by session
   const getGroupedData = () => {
     const grouped = {};
-    
+
+    // Initialize structure for all clinics and days
+    clinics.forEach((clinic) => {
+      grouped[clinic] = {};
+      days.forEach((day) => {
+        grouped[clinic][day] = {
+          0: [], // Session 1 - Morning
+          1: [], // Session 2 - Afternoon
+          2: [], // Session 3 - Night
+        };
+      });
+    });
+
+    // Populate with actual data
     rotaData.forEach((entry) => {
-      try {
-        const clinicName = entry.clinic?.clinicName;
-        if (!clinicName) return;
-        
-        // Determine day name from startDate
-        let dayName = "";
-        try {
-          const date = new Date(entry.startDate);
-          dayName = format(date, "EEEE");
-        } catch (e) {
-          console.error("Error processing date:", entry.startDate, e);
-          return;
-        }
-        
-        // Determine session type based on time of day
-        let sessionType = "";
-        try {
-          const hour = new Date(entry.startDate).getHours();
-          if (hour < 12) sessionType = "Session 1"; // Morning
-          else if (hour < 17) sessionType = "Session 2"; // Afternoon
-          else sessionType = "Session 3"; // Evening
-        } catch (e) {
-          console.error("Error determining session type:", e);
-          sessionType = "Unassigned";
-        }
-        
-        if (!grouped[clinicName]) grouped[clinicName] = {};
-        if (!grouped[clinicName][dayName]) grouped[clinicName][dayName] = {};
-        if (!grouped[clinicName][dayName][sessionType]) {
-          grouped[clinicName][dayName][sessionType] = [];
-        }
-        
-        grouped[clinicName][dayName][sessionType].push(entry);
-      } catch (e) {
-        console.error("Error processing entry:", entry, e);
+      const clinicName = entry.clinic?.clinicName;
+      const dayName = entry.day;
+
+      if (!clinicName || !dayName) return;
+
+      // Determine session index based on sessionType
+      let sessionIndex = 0;
+      if (entry.sessionType === "Morning") {
+        sessionIndex = 0;
+      } else if (entry.sessionType === "Afternoon") {
+        sessionIndex = 1;
+      } else if (entry.sessionType === "Night") {
+        sessionIndex = 2;
       }
+
+      if (!grouped[clinicName]) grouped[clinicName] = {};
+      if (!grouped[clinicName][dayName])
+        grouped[clinicName][dayName] = { 0: [], 1: [], 2: [] };
+
+      grouped[clinicName][dayName][sessionIndex].push(entry);
     });
 
     return grouped;
@@ -144,7 +150,10 @@ const MainRota = () => {
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+      <div
+        className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+        role="alert"
+      >
         <strong className="font-bold">Error: </strong>
         <span className="block sm:inline">{error}</span>
       </div>
@@ -156,15 +165,17 @@ const MainRota = () => {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Clinic Rota Schedule</h1>
+        <h1 className="text-2xl font-bold text-gray-800">
+          Clinic Rota Schedule
+        </h1>
         <div className="flex space-x-2">
-          <button 
+          <button
             onClick={() => setCurrentWeekStart(addDays(currentWeekStart, -7))}
             className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
           >
             Previous
           </button>
-          <button 
+          <button
             onClick={() => setCurrentWeekStart(addDays(currentWeekStart, 7))}
             className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
           >
@@ -172,16 +183,16 @@ const MainRota = () => {
           </button>
         </div>
       </div>
-      
+
       <div className="mb-2 text-sm text-gray-600">
         Week of {format(currentWeekStart, "do MMM yyyy")}
       </div>
-      
+
       <div className="relative">
         <div className="md:hidden absolute right-0 top-0 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
           ← Scroll →
         </div>
-        
+
         <div className="overflow-x-auto shadow-lg rounded-xl border border-gray-200">
           <div className="min-w-[800px]">
             <table className="w-full">
@@ -209,34 +220,39 @@ const MainRota = () => {
                       <tr className="bg-gray-100">
                         <td className="p-3 border border-gray-200 sticky left-0 z-10 bg-gray-100 font-bold text-gray-700 whitespace-nowrap">
                           <div className="flex flex-col">
-                            <span>{day}</span>
-                            <span className="text-xs font-normal text-gray-500">
-                              {getDateForDay(day)}
+                            <span className="font-semibold text-gray-800">
+                            {day}
                             </span>
+                         
                           </div>
                         </td>
                         {clinics.map((clinic, clinicIndex) => (
-                          <td key={clinicIndex} className="p-3 border border-gray-200 bg-gray-100"></td>
+                          <td
+                            key={clinicIndex}
+                            className="p-3 border border-gray-200 bg-gray-100"
+                          ></td>
                         ))}
                       </tr>
-                      
-                      {staticSessions.map((session, sessionIndex) => (
-                        <tr 
-                          key={`${dayIndex}-${sessionIndex}`} 
-                          className={sessionIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+
+                      {[0, 1, 2].map((sessionIndex) => (
+                        <tr
+                          key={`${dayIndex}-${sessionIndex}`}
+                          className={
+                            sessionIndex % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          }
                         >
                           <td className="p-3 border border-gray-200 sticky left-0 z-10 bg-blue-50 whitespace-nowrap">
                             <div className="flex items-center pl-4">
                               <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                               <div className="font-medium text-blue-800">
-                                {session}
+                                Session {sessionIndex + 1}
                               </div>
                             </div>
                           </td>
                           {clinics.map((clinic, clinicIndex) => {
-                            const sessionsForDay = groupedData[clinic]?.[day] || {};
-                            const entries = sessionsForDay[session] || [];
-                            
+                            const entries =
+                              groupedData[clinic]?.[day]?.[sessionIndex] || [];
+
                             return (
                               <td
                                 key={clinicIndex}
@@ -245,18 +261,25 @@ const MainRota = () => {
                                 {entries.length > 0 ? (
                                   <div className="space-y-2">
                                     {entries.map((entry, entryIndex) => (
-                                      <div 
-                                        key={entryIndex} 
+                                      <div
+                                        key={entryIndex}
                                         className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm hover:shadow-md transition-shadow"
                                       >
                                         <div className="font-semibold text-blue-700 whitespace-nowrap">
-                                          {entry.clinician?.clinicianName || "No Clinician"}
+                                          {entry.clinician?.clinicianName ||
+                                            "No Clinician"}
+                                        </div>
+                                        <div className="text-gray-600 text-sm mt-1 font-medium whitespace-nowrap">
+                                          {entry.slot?.slotName || "Unassigned"}
                                         </div>
                                         <div className="text-gray-500 text-sm mt-1 whitespace-nowrap">
-                                          {entry.slotName || "Unassigned"}
+                                          {formatSessionTimeUTC(
+                                            entry.slot?.startDate,
+                                            entry.slot?.endDate
+                                          )}
                                         </div>
-                                        <div className="text-gray-500 text-sm mt-1 whitespace-nowrap">
-                                          {formatSessionTime(entry.startDate, entry.endDate)}
+                                        <div className="text-gray-400 text-xs mt-1 whitespace-nowrap">
+                                          {entry.day}
                                         </div>
                                       </div>
                                     ))}
@@ -275,7 +298,10 @@ const MainRota = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={clinics.length + 1} className="p-4 text-center text-gray-500">
+                    <td
+                      colSpan={clinics.length + 1}
+                      className="p-4 text-center text-gray-500"
+                    >
                       No days data available
                     </td>
                   </tr>

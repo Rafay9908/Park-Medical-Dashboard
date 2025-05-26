@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useClinics } from "../context/ClinicsContext";
 import {
   FaClinicMedical,
@@ -47,11 +47,33 @@ export default function Clinics() {
     selectedSlots,
     setSelectedSlots,
     toggleOperatingHour,
+    fetchSlots, // Add this method to your context if it doesn't exist
   } = useClinics();
 
   const [expandedCard, setExpandedCard] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Auto-refresh slots when component mounts or becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && fetchSlots) {
+        fetchSlots();
+      }
+    };
+
+    // Fetch slots on mount
+    if (fetchSlots) {
+      fetchSlots();
+    }
+
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchSlots]);
 
   const timeOptions = useMemo(() => {
     const options = [];
@@ -142,6 +164,15 @@ export default function Clinics() {
     (isoString, format = "HH:mm") => {
       return DateTime.fromISO(isoString, { zone: "utc" })
         .setZone("Europe/London")
+        .toFormat(format);
+    },
+    []
+  );
+
+  // New function to format time in UTC
+  const formatTimeUTC = useCallback(
+    (isoString, format = "HH:mm") => {
+      return DateTime.fromISO(isoString, { zone: "utc" })
         .toFormat(format);
     },
     []
@@ -574,14 +605,10 @@ export default function Clinics() {
                 selectedSlots.map((slot) => {
                   const fullSlot = listOfSlots.find((s) => s._id === slot._id);
                   const startTime = fullSlot
-                    ? DateTime.fromISO(fullSlot.startDate, { zone: "utc" })
-                        .setZone("Europe/London")
-                        .toFormat("HH:mm")
+                    ? formatTimeUTC(fullSlot.startDate)
                     : "";
                   const endTime = fullSlot
-                    ? DateTime.fromISO(fullSlot.endDate, { zone: "utc" })
-                        .setZone("Europe/London")
-                        .toFormat("HH:mm")
+                    ? formatTimeUTC(fullSlot.endDate)
                     : "";
 
                   return (
@@ -620,12 +647,8 @@ export default function Clinics() {
                 onClick={(e) => e.stopPropagation()}
               >
                 {listOfSlots.map((slot) => {
-                  const startTime = DateTime.fromISO(slot.startDate, { zone: "utc" })
-                    .setZone("Europe/London")
-                    .toFormat("HH:mm");
-                  const endTime = DateTime.fromISO(slot.endDate, { zone: "utc" })
-                    .setZone("Europe/London")
-                    .toFormat("HH:mm");
+                  const startTime = formatTimeUTC(slot.startDate);
+                  const endTime = formatTimeUTC(slot.endDate);
 
                   return (
                     <div

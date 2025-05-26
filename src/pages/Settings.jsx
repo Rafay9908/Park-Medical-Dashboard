@@ -2,7 +2,6 @@ import React, { useEffect, useMemo } from "react";
 import { useState } from "react";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
 import axios from "axios";
-import { DateTime } from "luxon";
 
 function Settings() {
   const API_URL = import.meta.env.VITE_API_URL;
@@ -50,13 +49,6 @@ function Settings() {
     }));
   };
 
-  const formatToUTC = (timeString) => {
-    const baseDate = DateTime.now().setZone("Europe/London").toISODate();
-    return DateTime.fromISO(`${baseDate}T${timeString}`, {
-      zone: "Europe/London",
-    }).toUTC().toISO();
-  };
-
   const fetchSlots = async () => {
     try {
       const response = await axios.get(`${API_URL}/slots`);
@@ -72,25 +64,40 @@ function Settings() {
     setError("");
 
     try {
-      const newStart = formatToUTC(formData.startDate);
-      const newEnd = formatToUTC(formData.endDate);
+      // Simple time comparison without timezone conversion
+      const [startHour, startMin] = formData.startDate.split(':').map(Number);
+      const [endHour, endMin] = formData.endDate.split(':').map(Number);
+      
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
 
-      // Only validate that end time is after start time
-      if (DateTime.fromISO(newEnd) <= DateTime.fromISO(newStart)) {
+      if (endMinutes <= startMinutes) {
         setError("End time must be after start time");
         return;
       }
 
+      // Create ISO date strings for today with the selected times
+      const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD
+      const startDateTime = `${today}T${formData.startDate}:00.000Z`;
+      const endDateTime = `${today}T${formData.endDate}:00.000Z`;
+
+      console.log("Sending data:", {
+        slotName: formData.slotName,
+        startDate: startDateTime,
+        endDate: endDateTime,
+      });
+
       await axios.post(`${API_URL}/slots`, {
         slotName: formData.slotName,
-        startDate: newStart,
-        endDate: newEnd,
+        startDate: startDateTime,
+        endDate: endDateTime,
       });
 
       await fetchSlots();
       setFormData({ slotName: "", startDate: "", endDate: "" });
     } catch (error) {
       console.error("Failed to add slot:", error);
+      console.error("Error response:", error.response?.data);
       const errorMessage = error.response?.data?.message || "Failed to add slot. Please try again.";
       setError(errorMessage);
     }
@@ -100,14 +107,22 @@ function Settings() {
     setOpenSlotId(prev => prev === id ? null : id);
   };
 
+  // Helper function to extract time from ISO string
+  const extractTimeFromISO = (isoString) => {
+    const date = new Date(isoString);
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
   const handleUpdate = (id) => {
     const slotToEdit = slots.find((slot) => slot._id === id);
     if (slotToEdit) {
       setEditSlotId(id);
       setEditFormData({
         slotName: slotToEdit.slotName,
-        startDate: formatTime(slotToEdit.startDate, "HH:mm"),
-        endDate: formatTime(slotToEdit.endDate, "HH:mm"),
+        startDate: extractTimeFromISO(slotToEdit.startDate),
+        endDate: extractTimeFromISO(slotToEdit.endDate),
       });
     }
   };
@@ -116,25 +131,40 @@ function Settings() {
     setError("");
 
     try {
-      const updatedStart = formatToUTC(editFormData.startDate);
-      const updatedEnd = formatToUTC(editFormData.endDate);
+      // Simple time comparison without timezone conversion
+      const [startHour, startMin] = editFormData.startDate.split(':').map(Number);
+      const [endHour, endMin] = editFormData.endDate.split(':').map(Number);
+      
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
 
-      // Only validate that end time is after start time
-      if (DateTime.fromISO(updatedEnd) <= DateTime.fromISO(updatedStart)) {
+      if (endMinutes <= startMinutes) {
         setError("End time must be after start time");
         return;
       }
 
+      // Create ISO date strings for today with the selected times
+      const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD
+      const startDateTime = `${today}T${editFormData.startDate}:00.000Z`;
+      const endDateTime = `${today}T${editFormData.endDate}:00.000Z`;
+
+      console.log("Updating with data:", {
+        slotName: editFormData.slotName,
+        startDate: startDateTime,
+        endDate: endDateTime,
+      });
+
       await axios.put(`${API_URL}/slots/${id}`, {
         slotName: editFormData.slotName,
-        startDate: updatedStart,
-        endDate: updatedEnd,
+        startDate: startDateTime,
+        endDate: endDateTime,
       });
 
       await fetchSlots();
       setEditSlotId(null);
     } catch (error) {
       console.error("Failed to update slot:", error);
+      console.error("Error response:", error.response?.data);
       const errorMessage = error.response?.data?.message || "Failed to update slot. Please try again.";
       setError(errorMessage);
     }
@@ -150,10 +180,6 @@ function Settings() {
       console.error("Failed to delete slot:", error);
       setError("Failed to delete slot. Please try again.");
     }
-  };
-
-  const formatTime = (isoString, format = "HH:mm") => {
-    return DateTime.fromISO(isoString).setZone("Europe/London").toFormat(format);
   };
 
   useEffect(() => {
@@ -300,7 +326,7 @@ function Settings() {
                       </select>
                     ) : (
                       <p className="p-3 bg-gray-100 rounded-lg border">
-                        {formatTime(slot.startDate)}
+                        {extractTimeFromISO(slot.startDate)}
                       </p>
                     )}
                   </div>
@@ -323,7 +349,7 @@ function Settings() {
                       </select>
                     ) : (
                       <p className="p-3 bg-gray-100 rounded-lg border">
-                        {formatTime(slot.endDate)}
+                        {extractTimeFromISO(slot.endDate)}
                       </p>
                     )}
                   </div>
