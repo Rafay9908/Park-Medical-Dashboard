@@ -2,18 +2,10 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    const mongoURI = process.env.MONGO_URL || process.env.MONGO_URI ||  'mongodb://127.0.0.1:27017/medical_clinic';
-    
-    
-    
-    
-   
-    
-    await mongoose.connect(mongoURI);
+    await mongoose.connect('mongodb+srv://abdulrafay9908:<db_password>@cluster0.zyqegts.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0');
     console.log('MongoDB Connected Successfully');
-    console.log('Connected to:', mongoURI.replace(/\/\/.*:.*@/, '//***:***@'));
   } catch (error) {
-    console.error('MongoDB Connection Error:', error.message);
+    console.error(error.message);
     process.exit(1);
   }
 };
